@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
@@ -59,6 +60,47 @@ class User extends Authenticatable
             'password' => 'hashed',
             'social_links' => 'array',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $user): void {
+            if (blank($user->profile_slug)) {
+                $user->profile_slug = self::generateUniqueProfileSlug(
+                    (string) ($user->username ?: $user->name ?: 'user')
+                );
+            }
+        });
+
+        static::updating(function (self $user): void {
+            if (blank($user->profile_slug)) {
+                $user->profile_slug = self::generateUniqueProfileSlug(
+                    (string) ($user->username ?: $user->name ?: 'user'),
+                    $user->id
+                );
+            }
+        });
+    }
+
+    public static function generateUniqueProfileSlug(string $source, ?int $ignoreId = null): string
+    {
+        $base = Str::slug($source);
+        $base = $base !== '' ? $base : 'user';
+
+        $candidate = $base;
+        $suffix = 2;
+
+        while (
+            static::query()
+                ->when($ignoreId !== null, fn ($query) => $query->where('id', '!=', $ignoreId))
+                ->where('profile_slug', $candidate)
+                ->exists()
+        ) {
+            $candidate = "{$base}-{$suffix}";
+            $suffix++;
+        }
+
+        return $candidate;
     }
 
     public function articles(): HasMany
