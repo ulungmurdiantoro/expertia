@@ -33,7 +33,7 @@
                     <a href="#" class="hover:text-zinc-700">Koreksi</a>
                     <a href="#" class="hover:text-zinc-700">Pedoman media siber</a>
                 </div>
-                <p>Hak cipta © 2010-2026, expertia.id</p>
+                <p>Hak cipta © 2026, expertia.id</p>
             </div>
         </div>
     </footer>
