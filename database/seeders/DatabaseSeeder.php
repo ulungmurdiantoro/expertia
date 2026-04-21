@@ -4,23 +4,23 @@ namespace Database\Seeders;
 
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     */
     public function run(): void
     {
         $this->call(RoleAndPermissionSeeder::class);
 
         $admin = User::firstOrCreate(
             ['email' => 'test@example.com'],
-            User::factory()->make([
+            [
                 'name' => 'Test User',
                 'username' => 'admin',
+                'password' => Hash::make('password123'),
+                'email_verified_at' => now(),
                 'status' => 'active',
-            ])->toArray()
+            ]
         );
 
         if (blank($admin->username)) {
