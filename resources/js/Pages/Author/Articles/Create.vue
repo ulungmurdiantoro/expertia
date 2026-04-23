@@ -12,12 +12,15 @@ const form = useForm({
     title: '',
     excerpt: '',
     content: '',
+    writing_source: '',
     category_id: '',
     thumbnail: null,
     thumbnail_alt: '',
+    thumbnail_source: '',
     meta_title: '',
     meta_description: '',
     scheduled_at: '',
+    scheduled_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 });
 
 const contentWordCount = computed(() => {
@@ -74,6 +77,12 @@ const submit = () => {
                             placeholder="Tulis dek singkat artikel..."
                             class="mt-4 w-full resize-none border-0 px-0 text-lg text-zinc-600 placeholder:text-zinc-300 focus:ring-0"
                         />
+                        <textarea
+                            v-model="form.writing_source"
+                            rows="2"
+                            placeholder="Sumber penulisan (opsional): referensi, jurnal, tautan, atau catatan riset"
+                            class="mt-4 w-full resize-none rounded-lg border-zinc-300 text-sm text-zinc-700 placeholder:text-zinc-400"
+                        />
                         <div class="mt-8">
                             <RichTextEditor
                                 v-model="form.content"
@@ -94,6 +103,7 @@ const submit = () => {
                             <input v-model="form.meta_title" type="text" placeholder="Meta title (opsional)" class="w-full rounded-lg border-zinc-300 text-sm" />
                             <textarea v-model="form.meta_description" rows="3" placeholder="Meta description (opsional)" class="w-full rounded-lg border-zinc-300 text-sm" />
                             <input v-model="form.scheduled_at" type="datetime-local" class="w-full rounded-lg border-zinc-300 text-sm" />
+                            <p class="text-xs text-zinc-500">Timezone jadwal: {{ form.scheduled_timezone }}</p>
                         </div>
                     </div>
 
@@ -110,6 +120,12 @@ const submit = () => {
                                 v-model="form.thumbnail_alt"
                                 type="text"
                                 placeholder="Alt text thumbnail"
+                                class="w-full rounded-lg border-zinc-300 text-sm"
+                            />
+                            <input
+                                v-model="form.thumbnail_source"
+                                type="text"
+                                placeholder="Sumber thumbnail (opsional): URL/kredit foto"
                                 class="w-full rounded-lg border-zinc-300 text-sm"
                             />
                             <p class="text-xs text-zinc-500">Batas upload dokumen/file apapun: maksimal 2MB per file.</p>

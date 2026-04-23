@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class DatabaseSeeder extends Seeder
 {
@@ -12,44 +13,117 @@ class DatabaseSeeder extends Seeder
     {
         $this->call(RoleAndPermissionSeeder::class);
 
-        $admin = User::firstOrCreate(
-            ['email' => 'test@example.com'],
-            [
-                'name' => 'Test User',
-                'username' => 'admin',
-                'password' => Hash::make('password123'),
-                'email_verified_at' => now(),
-                'status' => 'active',
-            ]
+        $superAdmin = $this->upsertSeedUser(
+            name: 'Super Admin',
+            email: 'superadmin@example.com',
+            preferredUsername: 'superadmin',
+            institution: 'Expertia HQ'
         );
+        $superAdmin->syncRoles(['super-admin']);
 
-        if (blank($admin->username)) {
-            $admin->username = 'admin';
+        $this->seedRoleUser('admin', 'Admin Platform', 'admin@example.com', 'admin');
+        $this->seedRoleUser('partner-manager', 'Partner Manager', 'partner.manager@example.com', 'partner-manager', 'Mitra Riset Nusantara');
+        $this->seedRoleUser('editor', 'Editor Desk', 'editor@example.com', 'editor');
+        $this->seedRoleUser('moderator', 'Moderator Komunitas', 'moderator@example.com', 'moderator');
+        $this->seedRoleUser('verified-expert', 'Dr. Verified Expert', 'verified.expert@example.com', 'verified-expert', 'Institut Inovasi Indonesia');
+        $this->seedRoleUser('author', 'Author Kontributor', 'author@example.com', 'author');
+        $this->seedRoleUser('subscriber', 'Subscriber Premium', 'subscriber@example.com', 'subscriber');
+        $this->seedRoleUser('user', 'User Reguler', 'user@example.com', 'user');
+
+        // Kompatibilitas akun demo lama
+        $legacyAdmin = $this->upsertSeedUser(
+            name: 'Test User',
+            email: 'test@example.com',
+            preferredUsername: 'admin-legacy'
+        );
+        $legacyAdmin->syncRoles(['admin']);
+
+        $this->call(ContentDummySeeder::class);
+    }
+
+    private function seedRoleUser(
+        string $role,
+        string $name,
+        string $email,
+        string $username,
+        ?string $institution = null
+    ): void {
+        $user = $this->upsertSeedUser(
+            name: $name,
+            email: $email,
+            preferredUsername: $username,
+            institution: $institution
+        );
+        $user->syncRoles([$role]);
+    }
+
+    private function upsertSeedUser(
+        string $name,
+        string $email,
+        string $preferredUsername,
+        ?string $institution = null
+    ): User {
+        $user = User::firstOrNew(['email' => $email]);
+        $user->name = $name;
+        $user->password = Hash::make('password123');
+        $user->email_verified_at = now();
+        $user->status = 'active';
+        $user->institution = $institution;
+
+        $this->fillIdentityFields($user, $preferredUsername);
+
+        return $user;
+    }
+
+    private function fillIdentityFields(User $user, string $preferredUsername): void
+    {
+        $currentUsername = (string) ($user->username ?? '');
+        $usernameTakenByOtherUser = $currentUsername !== '' && User::query()
+            ->when($user->exists, fn ($query) => $query->where('id', '!=', $user->id))
+            ->where('username', $currentUsername)
+            ->exists();
+
+        if ($currentUsername === '' || $usernameTakenByOtherUser) {
+            $user->username = $this->buildUniqueUsername($preferredUsername, $user->id);
         }
 
-        if (blank($admin->profile_slug)) {
-            $admin->profile_slug = User::generateUniqueProfileSlug(
-                (string) ($admin->username ?: $admin->name ?: 'admin'),
-                $admin->id
+        $currentSlug = (string) ($user->profile_slug ?? '');
+        $slugTakenByOtherUser = $currentSlug !== '' && User::query()
+            ->when($user->exists, fn ($query) => $query->where('id', '!=', $user->id))
+            ->where('profile_slug', $currentSlug)
+            ->exists();
+
+        if ($currentSlug === '' || $slugTakenByOtherUser) {
+            $user->profile_slug = User::generateUniqueProfileSlug(
+                (string) ($user->username ?: $user->name ?: 'user'),
+                $user->id
             );
         }
 
-        if ($admin->isDirty()) {
-            $admin->save();
+        if (blank($user->public_id)) {
+            $user->public_id = (string) Str::uuid();
         }
 
-        User::query()
-            ->where(fn ($query) => $query->whereNull('profile_slug')->orWhere('profile_slug', ''))
-            ->orderBy('id')
-            ->each(function (User $user): void {
-                $user->profile_slug = User::generateUniqueProfileSlug(
-                    (string) ($user->username ?: $user->name ?: 'user'),
-                    $user->id
-                );
+        $user->save();
+    }
 
-                $user->save();
-            });
+    private function buildUniqueUsername(string $base, ?int $ignoreId = null): string
+    {
+        $base = Str::slug($base, '');
+        $base = $base !== '' ? $base : 'user';
+        $candidate = $base;
+        $suffix = 2;
 
-        $admin->assignRole('admin');
+        while (
+            User::query()
+                ->when($ignoreId !== null, fn ($query) => $query->where('id', '!=', $ignoreId))
+                ->where('username', $candidate)
+                ->exists()
+        ) {
+            $candidate = "{$base}{$suffix}";
+            $suffix++;
+        }
+
+        return $candidate;
     }
 }

@@ -7,6 +7,8 @@ use App\Models\ActivityLog;
 use App\Models\Article;
 use App\Models\ArticleReview;
 use App\Models\UserNotification;
+use App\Services\ArticleScoringService;
+use App\Services\EventTrackingService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -33,13 +35,19 @@ class ReviewQueueController extends Controller
         ]);
     }
 
-    public function approve(Article $article): \Illuminate\Http\RedirectResponse
+    public function approve(
+        Article $article,
+        EventTrackingService $eventTrackingService,
+        ArticleScoringService $articleScoringService
+    ): \Illuminate\Http\RedirectResponse
     {
+        $isScheduledFuture = $article->scheduled_at && $article->scheduled_at->isFuture();
+        $nextStatus = $isScheduledFuture ? 'scheduled' : 'published';
         $article->update([
-            'status' => 'published',
+            'status' => $nextStatus,
             'editorial_status' => 'approved',
             'reviewed_at' => now(),
-            'published_at' => $article->published_at ?? now(),
+            'published_at' => $isScheduledFuture ? null : ($article->published_at ?? now()),
         ]);
 
         ArticleReview::create([
@@ -59,19 +67,31 @@ class ReviewQueueController extends Controller
 
         UserNotification::create([
             'user_id' => $article->user_id,
-            'type' => 'article.approved',
-            'title' => 'Artikel disetujui',
-            'body' => "Artikel '{$article->title}' disetujui dan dipublikasikan.",
+            'type' => $isScheduledFuture ? 'article.scheduled' : 'article.approved',
+            'title' => $isScheduledFuture ? 'Artikel dijadwalkan tayang' : 'Artikel disetujui',
+            'body' => $isScheduledFuture
+                ? "Artikel '{$article->title}' disetujui dan dijadwalkan tayang pada {$article->scheduled_at?->toDateTimeString()}."
+                : "Artikel '{$article->title}' disetujui dan dipublikasikan.",
             'data_json' => [
                 'article_id' => $article->id,
                 'article_slug' => $article->slug,
+                'scheduled_at' => optional($article->scheduled_at)?->toDateTimeString(),
             ],
         ]);
+        $eventTrackingService->track(request(), 'editorial.article.approve', $article);
+        if (!$isScheduledFuture) {
+            $articleScoringService->scoreArticle($article->fresh());
+        }
 
-        return back()->with('success', 'Artikel disetujui dan dipublikasikan.');
+        return back()->with(
+            'success',
+            $isScheduledFuture
+                ? 'Artikel disetujui dan dijadwalkan tayang otomatis.'
+                : 'Artikel disetujui dan dipublikasikan.'
+        );
     }
 
-    public function reject(Request $request, Article $article): \Illuminate\Http\RedirectResponse
+    public function reject(Request $request, Article $article, EventTrackingService $eventTrackingService): \Illuminate\Http\RedirectResponse
     {
         $validated = $request->validate([
             'note' => ['nullable', 'string', 'max:1000'],
@@ -110,11 +130,14 @@ class ReviewQueueController extends Controller
                 'note' => $validated['note'] ?? null,
             ],
         ]);
+        $eventTrackingService->track($request, 'editorial.article.reject', $article, [
+            'note' => $validated['note'] ?? null,
+        ]);
 
         return back()->with('success', 'Artikel ditolak.');
     }
 
-    public function requestRevision(Request $request, Article $article): \Illuminate\Http\RedirectResponse
+    public function requestRevision(Request $request, Article $article, EventTrackingService $eventTrackingService): \Illuminate\Http\RedirectResponse
     {
         $validated = $request->validate([
             'note' => ['required', 'string', 'max:1000'],
@@ -152,6 +175,9 @@ class ReviewQueueController extends Controller
                 'article_slug' => $article->slug,
                 'note' => $validated['note'],
             ],
+        ]);
+        $eventTrackingService->track($request, 'editorial.article.request_revision', $article, [
+            'note' => $validated['note'],
         ]);
 
         return back()->with('success', 'Permintaan revisi dikirim ke author.');

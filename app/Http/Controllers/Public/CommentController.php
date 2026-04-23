@@ -6,12 +6,19 @@ use App\Http\Controllers\Controller;
 use App\Models\Article;
 use App\Models\Comment;
 use App\Models\UserNotification;
+use App\Services\ArticleScoringService;
+use App\Services\EventTrackingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class CommentController extends Controller
 {
-    public function store(Request $request, Article $article): RedirectResponse
+    public function store(
+        Request $request,
+        Article $article,
+        EventTrackingService $eventTrackingService,
+        ArticleScoringService $articleScoringService
+    ): RedirectResponse
     {
         abort_if($article->status !== 'published', 404);
 
@@ -36,6 +43,10 @@ class CommentController extends Controller
             'parent_id' => $validated['parent_id'] ?? null,
             'content' => $validated['content'],
             'status' => 'pending',
+        ]);
+        $eventTrackingService->track($request, 'comment.created', $article, [
+            'comment_id' => $comment->id,
+            'is_reply' => (bool) $comment->parent_id,
         ]);
 
         if ($article->user_id !== $request->user()->id) {
@@ -67,10 +78,18 @@ class CommentController extends Controller
             ]);
         }
 
+        $articleScoringService->scoreArticle($article->fresh());
+
         return back()->with('success', 'Komentar terkirim dan menunggu moderasi.');
     }
 
-    public function destroy(Request $request, Article $article, Comment $comment): RedirectResponse
+    public function destroy(
+        Request $request,
+        Article $article,
+        Comment $comment,
+        EventTrackingService $eventTrackingService,
+        ArticleScoringService $articleScoringService
+    ): RedirectResponse
     {
         abort_unless($comment->article_id === $article->id, 404);
 
@@ -85,6 +104,10 @@ class CommentController extends Controller
             if ($wasApproved && $article->comment_count > 0) {
                 $article->decrement('comment_count');
             }
+            $eventTrackingService->track($request, 'comment.deleted', $article, [
+                'comment_id' => $comment->id,
+            ]);
+            $articleScoringService->scoreArticle($article->fresh());
         }
 
         return back()->with('success', 'Komentar dihapus.');

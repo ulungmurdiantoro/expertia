@@ -4,6 +4,8 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\Article;
+use App\Services\ArticleScoringService;
+use App\Services\EventTrackingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -33,20 +35,45 @@ class BookmarkController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(
+        Request $request,
+        EventTrackingService $eventTrackingService,
+        ArticleScoringService $articleScoringService
+    ): RedirectResponse
     {
         $validated = $request->validate([
             'article_id' => ['required', 'integer', 'exists:articles,id'],
         ]);
 
-        $request->user()->bookmarks()->firstOrCreate($validated);
+        $bookmark = $request->user()->bookmarks()->firstOrCreate($validated);
+        $article = Article::query()->find($validated['article_id']);
+
+        if ($bookmark->wasRecentlyCreated && $article) {
+            $article->update([
+                'bookmark_count' => $article->bookmarks()->count(),
+            ]);
+            $eventTrackingService->track($request, 'article.bookmark', $article);
+            $articleScoringService->scoreArticle($article->fresh());
+        }
 
         return back()->with('success', 'Artikel ditambahkan ke bookmark.');
     }
 
-    public function destroy(Request $request, Article $article): RedirectResponse
+    public function destroy(
+        Request $request,
+        Article $article,
+        EventTrackingService $eventTrackingService,
+        ArticleScoringService $articleScoringService
+    ): RedirectResponse
     {
-        $request->user()->bookmarks()->where('article_id', $article->id)->delete();
+        $deleted = $request->user()->bookmarks()->where('article_id', $article->id)->delete();
+        if ($deleted > 0) {
+            $article->update([
+                'bookmark_count' => $article->bookmarks()->count(),
+            ]);
+            $eventTrackingService->track($request, 'article.unbookmark', $article);
+            $articleScoringService->scoreArticle($article->fresh());
+        }
 
         return back()->with('success', 'Bookmark dihapus.');
     }

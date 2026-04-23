@@ -12,7 +12,7 @@ class DashboardController extends Controller
     {
         $user = request()->user();
 
-        if ($user->hasRole('admin')) {
+        if ($user->hasAnyRole(['admin', 'super-admin'])) {
             return redirect()->route('admin.dashboard');
         }
 
@@ -20,7 +20,11 @@ class DashboardController extends Controller
             return redirect()->route('editor.reviews.index');
         }
 
-        if ($user->hasRole('author')) {
+        if ($user->hasRole('moderator')) {
+            return redirect()->route('editor.moderation.comments.index');
+        }
+
+        if ($user->hasAnyRole(['author', 'verified-expert'])) {
             return redirect()->route('author.articles.index');
         }
 

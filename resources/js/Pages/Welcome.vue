@@ -135,7 +135,12 @@ const featureGrid = props.latest.slice(0, 6);
                 <div class="lg:col-span-2">
                     <div class="flex items-center justify-between border-b border-zinc-200 pb-2">
                         <h2 class="text-sm font-semibold uppercase tracking-[0.2em] text-[#1BD6FF]">Artikel Terbaru</h2>
-                        <Link :href="route('articles.index')" class="text-xs font-semibold uppercase tracking-[0.12em] text-[#0f5f74] hover:text-[#1BD6FF]">Lihat Semua</Link>
+                        <Link :href="route('articles.index')" class="text-xs font-semibold uppercase tracking-[0.12em] text-[#0f5f74] hover:text-[#1BD6FF]">
+                            <span class="inline-flex items-center gap-2">
+                                <i class="fa-solid fa-newspaper text-[11px]"></i>
+                                Lihat Semua
+                            </span>
+                        </Link>
                     </div>
                     <div class="mt-4 divide-y divide-zinc-100">
                         <article v-for="story in compactStories" :key="story.id" class="grid gap-2 py-4 sm:grid-cols-4 sm:gap-6">
@@ -195,7 +200,10 @@ const featureGrid = props.latest.slice(0, 6);
                 <div class="flex items-center justify-between border-b border-zinc-200 pb-2">
                     <h2 class="text-sm font-semibold uppercase tracking-[0.2em] text-[#0f5f74]">Pilihan Redaksi</h2>
                     <Link :href="route('articles.index')" class="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-600 hover:text-[#0f5f74]">
-                        Lihat Semua Topik
+                        <span class="inline-flex items-center gap-2">
+                            <i class="fa-solid fa-layer-group text-[11px]"></i>
+                            Lihat Semua Topik
+                        </span>
                     </Link>
                 </div>
                 <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -238,8 +246,9 @@ const featureGrid = props.latest.slice(0, 6);
                     <div class="flex items-center lg:justify-end">
                         <Link
                             :href="canRegister ? route('register') : route('login')"
-                            class="inline-flex rounded-md bg-[#FF7950] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#eb6239]"
+                            class="inline-flex items-center gap-2 rounded-md bg-[#FF7950] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#eb6239]"
                         >
+                            <i class="fa-solid fa-pen-nib text-xs"></i>
                             Mulai Menulis
                         </Link>
                     </div>

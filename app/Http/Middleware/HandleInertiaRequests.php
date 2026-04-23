@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Models\Article;
 use App\Models\Comment;
 use App\Models\Report;
+use App\Models\UserNotification;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -33,7 +34,7 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         $user = $request->user();
-        $isEditorScope = $user && ($user->hasRole('editor') || $user->hasRole('admin'));
+        $isEditorScope = $user && $user->hasAnyRole(['editor', 'moderator', 'admin', 'super-admin']);
 
         return [
             ...parent::share($request),
@@ -49,6 +50,9 @@ class HandleInertiaRequests extends Middleware
                 'pending_reviews' => fn () => $isEditorScope ? Article::where('editorial_status', 'pending_review')->count() : 0,
                 'pending_comments' => fn () => $isEditorScope ? Comment::where('status', 'pending')->count() : 0,
                 'pending_reports' => fn () => $isEditorScope ? Report::where('status', 'pending')->count() : 0,
+            ],
+            'notifications' => [
+                'unread_count' => fn () => $user ? UserNotification::where('user_id', $user->id)->whereNull('read_at')->count() : 0,
             ],
         ];
     }

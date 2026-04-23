@@ -30,6 +30,10 @@ const reportCommentForm = useForm({
     note: '',
 });
 
+const reactionForm = useForm({
+    type: 'like',
+});
+
 const activeReplyId = ref(null);
 
 const escapeHtml = (value) => {
@@ -107,6 +111,19 @@ const reportComment = (commentId) => {
         preserveScroll: true,
     });
 };
+
+const react = (type) => {
+    reactionForm.type = type;
+    reactionForm.post(route('articles.reactions.store', props.article.slug), {
+        preserveScroll: true,
+    });
+};
+
+const clearReaction = () => {
+    reactionForm.delete(route('articles.reactions.destroy', props.article.slug), {
+        preserveScroll: true,
+    });
+};
 </script>
 
 <template>
@@ -172,17 +189,57 @@ const reportComment = (commentId) => {
                     <section class="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
                         <p class="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">Aksi</p>
                         <div class="mt-3 flex flex-wrap gap-2">
+                            <template v-if="viewer.is_authenticated">
+                                <button
+                                    @click="react('like')"
+                                    class="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF]"
+                                >
+                                    <i class="fa-solid fa-thumbs-up text-[11px]"></i>
+                                    Like ({{ article.reactions?.like || 0 }})
+                                </button>
+                                <button
+                                    @click="react('love')"
+                                    class="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#E80EB5]"
+                                >
+                                    <i class="fa-solid fa-heart text-[11px]"></i>
+                                    Love ({{ article.reactions?.love || 0 }})
+                                </button>
+                                <button
+                                    @click="react('insightful')"
+                                    class="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF]"
+                                >
+                                    <i class="fa-solid fa-lightbulb text-[11px]"></i>
+                                    Insightful ({{ article.reactions?.insightful || 0 }})
+                                </button>
+                                <button
+                                    @click="react('celebrate')"
+                                    class="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#FF7950]"
+                                >
+                                    <i class="fa-solid fa-champagne-glasses text-[11px]"></i>
+                                    Celebrate ({{ article.reactions?.celebrate || 0 }})
+                                </button>
+                                <button
+                                    v-if="viewer.reaction"
+                                    @click="clearReaction"
+                                    class="inline-flex items-center gap-1.5 rounded-md border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50"
+                                >
+                                    <i class="fa-solid fa-trash text-[11px]"></i>
+                                    Hapus Reaksi
+                                </button>
+                            </template>
                             <button
                                 v-if="viewer.is_authenticated && article.can_report"
                                 @click="reportArticle"
-                                class="rounded-md border border-[#FF7950] px-3 py-1.5 text-xs font-medium text-[#c9532f] hover:bg-[#fff1ec]"
+                                class="inline-flex items-center gap-1.5 rounded-md border border-[#FF7950] px-3 py-1.5 text-xs font-medium text-[#c9532f] hover:bg-[#fff1ec]"
                             >
+                                <i class="fa-solid fa-flag text-[11px]"></i>
                                 Laporkan Artikel
                             </button>
                             <Link
                                 :href="route('articles.index')"
-                                class="rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#0f5f74]"
+                                class="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#0f5f74]"
                             >
+                                <i class="fa-solid fa-newspaper text-[11px]"></i>
                                 Artikel Lainnya
                             </Link>
                         </div>

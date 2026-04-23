@@ -9,6 +9,8 @@ use App\Models\Article;
 use App\Models\Category;
 use App\Models\User;
 use App\Models\UserNotification;
+use App\Services\EventTrackingService;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -24,7 +26,7 @@ class ArticleController extends Controller
 
         $articles = Article::query()
             ->with('category:id,name')
-            ->when(!$user->hasRole('admin'), fn ($query) => $query->where('user_id', $user->id))
+            ->when(!$user->hasAnyRole(['admin', 'super-admin']), fn ($query) => $query->where('user_id', $user->id))
             ->latest()
             ->paginate(15)
             ->through(fn (Article $article) => [
@@ -51,7 +53,7 @@ class ArticleController extends Controller
 
     public function store(StoreArticleRequest $request): RedirectResponse
     {
-        $payload = $request->validated();
+        $payload = $this->normalizeSchedulePayload($request->validated());
         $user = $request->user();
         $thumbnail = $request->file('thumbnail');
 
@@ -80,15 +82,20 @@ class ArticleController extends Controller
             'slug',
             'excerpt',
             'content',
+            'writing_source',
             'category_id',
             'thumbnail',
             'thumbnail_alt',
+            'thumbnail_source',
             'status',
             'editorial_status',
             'meta_title',
             'meta_description',
-            'scheduled_at',
         ]);
+        $articlePayload['scheduled_at'] = optional($article->scheduled_at)
+            ?->timezone(config('app.timezone'))
+            ?->format('Y-m-d\TH:i');
+        $articlePayload['scheduled_timezone'] = config('app.timezone');
         $articlePayload['thumbnail_url'] = $article->thumbnail ? Storage::url($article->thumbnail) : null;
 
         return Inertia::render('Author/Articles/Edit', [
@@ -101,7 +108,7 @@ class ArticleController extends Controller
     {
         $this->authorizeOwnership($article);
 
-        $payload = $request->validated();
+        $payload = $this->normalizeSchedulePayload($request->validated());
         $thumbnail = $request->file('thumbnail');
 
         if ($thumbnail instanceof UploadedFile) {
@@ -123,7 +130,7 @@ class ArticleController extends Controller
         return back()->with('success', 'Artikel berhasil diperbarui.');
     }
 
-    public function submit(Article $article): RedirectResponse
+    public function submit(Article $article, EventTrackingService $eventTrackingService): RedirectResponse
     {
         $this->authorizeOwnership($article);
 
@@ -134,7 +141,7 @@ class ArticleController extends Controller
         ]);
 
         $reviewers = User::query()
-            ->role(['editor', 'admin'])
+            ->role(['editor', 'admin', 'super-admin'])
             ->where('id', '!=', $article->user_id)
             ->get(['id']);
 
@@ -151,13 +158,15 @@ class ArticleController extends Controller
             ]);
         }
 
+        $eventTrackingService->track(request(), 'article.submitted_for_review', $article);
+
         return back()->with('success', 'Artikel dikirim untuk review editor.');
     }
 
     private function authorizeOwnership(Article $article): void
     {
         $user = request()->user();
-        abort_unless($article->user_id === $user->id || $user->hasRole('admin'), 403);
+        abort_unless($article->user_id === $user->id || $user->hasAnyRole(['admin', 'super-admin']), 403);
     }
 
     private function makeUniqueSlug(string $title, ?int $ignoreId = null): string
@@ -177,5 +186,32 @@ class ArticleController extends Controller
         }
 
         return $slug;
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed>
+     */
+    private function normalizeSchedulePayload(array $payload): array
+    {
+        $timezone = (string) ($payload['scheduled_timezone'] ?? config('app.timezone', 'UTC'));
+
+        if (blank($payload['scheduled_at'] ?? null)) {
+            $payload['scheduled_at'] = null;
+            unset($payload['scheduled_timezone']);
+
+            return $payload;
+        }
+
+        try {
+            $scheduledAt = Carbon::parse((string) $payload['scheduled_at'], $timezone);
+        } catch (\Throwable) {
+            $scheduledAt = Carbon::parse((string) $payload['scheduled_at'], config('app.timezone', 'UTC'));
+        }
+
+        $payload['scheduled_at'] = $scheduledAt->utc()->toDateTimeString();
+        unset($payload['scheduled_timezone']);
+
+        return $payload;
     }
 }

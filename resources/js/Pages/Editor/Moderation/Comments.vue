@@ -12,6 +12,8 @@ const filterForm = useForm({
     q: props.filters?.q ?? '',
     status: props.filters?.status ?? '',
     article: props.filters?.article ?? '',
+    priority: props.filters?.priority ?? '',
+    sla: props.filters?.sla ?? '',
 });
 
 const statusForm = useForm({
@@ -86,6 +88,18 @@ const submitBulk = () => {
                         <option value="spam">spam</option>
                     </select>
                     <input v-model="filterForm.article" type="text" placeholder="Judul artikel" class="rounded-md border-gray-300" />
+                    <select v-model="filterForm.priority" class="rounded-md border-gray-300">
+                        <option value="">Semua priority</option>
+                        <option value="high">high</option>
+                        <option value="medium">medium</option>
+                        <option value="low">low</option>
+                    </select>
+                    <select v-model="filterForm.sla" class="rounded-md border-gray-300">
+                        <option value="">Semua SLA</option>
+                        <option value="fresh">fresh</option>
+                        <option value="overdue">overdue</option>
+                        <option value="critical">critical</option>
+                    </select>
                     <div class="flex gap-2">
                         <button type="submit" class="rounded bg-indigo-600 px-3 py-2 text-sm text-white">Filter</button>
                         <button type="button" @click="resetFilters" class="rounded bg-gray-600 px-3 py-2 text-sm text-white">Reset</button>
@@ -128,6 +142,13 @@ const submitBulk = () => {
                             <p class="mt-1 text-sm text-gray-700">{{ comment.content }}</p>
                             <p class="mt-2 text-xs text-gray-500">
                                 Artikel: {{ comment.article?.title }} | Status: {{ comment.status }}
+                            </p>
+                            <p class="mt-1 text-xs text-gray-500">
+                                Priority:
+                                <span class="font-semibold uppercase">{{ comment.priority }}</span>
+                                | SLA:
+                                <span class="font-semibold uppercase">{{ comment.sla?.label }}</span>
+                                <span v-if="comment.sla?.hours">({{ comment.sla.hours }}h)</span>
                             </p>
                         </div>
                         <div class="flex flex-wrap gap-2">

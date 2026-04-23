@@ -1,11 +1,48 @@
 <script setup>
 import PublicFooter from '@/Components/PublicFooter.vue';
 import PublicHeader from '@/Components/PublicHeader.vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
 
 const props = defineProps({
     articles: Object,
+    filters: {
+        type: Object,
+        default: () => ({
+            q: '',
+            category: '',
+            tag: '',
+            sort: 'latest',
+        }),
+    },
+    pageMeta: {
+        type: Object,
+        default: () => ({
+            title: 'Artikel',
+            subtitle: 'Kumpulan artikel yang sudah dipublikasikan di Expertia.',
+            highlight: 'Jelajahi',
+            mode: 'latest',
+        }),
+    },
 });
+
+const filterForm = useForm({
+    q: props.filters?.q ?? '',
+    category: props.filters?.category ?? '',
+    tag: props.filters?.tag ?? '',
+    sort: props.filters?.sort ?? 'latest',
+});
+
+const applyFilters = () => {
+    const routeName = props.pageMeta?.mode === 'trending'
+        ? 'articles.trending'
+        : props.pageMeta?.mode === 'feed'
+            ? 'me.feed'
+            : 'articles.index';
+    router.get(route(routeName), filterForm.data(), {
+        preserveScroll: true,
+        replace: true,
+    });
+};
 
 const formatDate = (value) => {
     if (!value) return '-';
@@ -19,7 +56,7 @@ const formatDate = (value) => {
 </script>
 
 <template>
-    <Head title="Artikel" />
+    <Head :title="pageMeta.title || 'Artikel'" />
 
     <div class="min-h-screen bg-[#f8fafc] text-zinc-900">
         <PublicHeader />
@@ -27,14 +64,40 @@ const formatDate = (value) => {
         <div class="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
             <div class="flex items-end justify-between gap-4 border-b border-zinc-200 pb-4">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#1BD6FF]">Jelajahi</p>
-                    <h1 class="mt-2 font-serif text-4xl font-bold text-zinc-900">Artikel</h1>
-                    <p class="mt-2 text-sm text-zinc-600">Kumpulan artikel yang sudah dipublikasikan di Expertia.</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#1BD6FF]">{{ pageMeta.highlight || 'Jelajahi' }}</p>
+                    <h1 class="mt-2 font-serif text-4xl font-bold text-zinc-900">{{ pageMeta.title || 'Artikel' }}</h1>
+                    <p class="mt-2 text-sm text-zinc-600">{{ pageMeta.subtitle || 'Kumpulan artikel yang sudah dipublikasikan di Expertia.' }}</p>
                 </div>
                 <Link href="/" class="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#0f5f74]">
                     Kembali ke Beranda
                 </Link>
             </div>
+
+            <form @submit.prevent="applyFilters" class="mt-4 grid gap-2 rounded-xl border border-zinc-200 bg-white p-4 md:grid-cols-4">
+                <input
+                    v-model="filterForm.q"
+                    type="text"
+                    placeholder="Cari judul/konten..."
+                    class="rounded-md border-zinc-300 text-sm focus:border-[#1BD6FF] focus:ring-[#1BD6FF]"
+                />
+                <input
+                    v-model="filterForm.category"
+                    type="text"
+                    placeholder="Kategori slug"
+                    class="rounded-md border-zinc-300 text-sm focus:border-[#1BD6FF] focus:ring-[#1BD6FF]"
+                />
+                <select
+                    v-model="filterForm.sort"
+                    class="rounded-md border-zinc-300 text-sm focus:border-[#1BD6FF] focus:ring-[#1BD6FF]"
+                >
+                    <option value="latest">Terbaru</option>
+                    <option value="trending">Trending</option>
+                    <option value="hot">Hotness</option>
+                </select>
+                <button type="submit" class="rounded-md bg-[#1BD6FF] px-3 py-2 text-sm font-medium text-white hover:bg-[#14bad9]">
+                    Terapkan
+                </button>
+            </form>
 
             <section class="mt-8 rounded-2xl border border-zinc-200 bg-white shadow-sm">
                 <div class="border-b border-zinc-200 px-5 py-4">

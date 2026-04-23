@@ -25,12 +25,15 @@ class UpdateArticleRequest extends FormRequest
             'title' => ['required', 'string', 'max:255'],
             'excerpt' => ['nullable', 'string', 'max:500'],
             'content' => ['nullable', 'string'],
+            'writing_source' => ['nullable', 'string', 'max:2000'],
             'category_id' => ['nullable', 'integer', 'exists:categories,id'],
             'thumbnail' => ['nullable', 'image', 'max:2048'],
             'thumbnail_alt' => ['nullable', 'string', 'max:255'],
+            'thumbnail_source' => ['nullable', 'string', 'max:2000'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'scheduled_at' => ['nullable', 'date'],
+            'scheduled_timezone' => ['nullable', 'string', 'max:64'],
         ];
     }
 }

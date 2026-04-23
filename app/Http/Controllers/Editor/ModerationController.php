@@ -20,6 +20,8 @@ class ModerationController extends Controller
             'q' => trim((string) $request->query('q', '')),
             'status' => (string) $request->query('status', ''),
             'article' => trim((string) $request->query('article', '')),
+            'priority' => (string) $request->query('priority', ''),
+            'sla' => (string) $request->query('sla', ''),
         ];
 
         $comments = Comment::query()
@@ -27,6 +29,40 @@ class ModerationController extends Controller
             ->whereIn('status', ['pending', 'approved', 'hidden', 'spam'])
             ->when($filters['status'] !== '', fn ($query) => $query->where('status', $filters['status']))
             ->when($filters['article'] !== '', fn ($query) => $query->whereHas('article', fn ($article) => $article->where('title', 'like', "%{$filters['article']}%")))
+            ->when($filters['priority'] !== '', function ($query) use ($filters) {
+                if ($filters['priority'] === 'high') {
+                    $query->where('status', 'pending')->where(function ($inner) {
+                        foreach ($this->priorityKeywords() as $keyword) {
+                            $inner->orWhere('content', 'like', "%{$keyword}%");
+                        }
+                    });
+                }
+
+                if ($filters['priority'] === 'medium') {
+                    $query->where('status', 'pending')->where(function ($inner) {
+                        foreach ($this->priorityKeywords() as $keyword) {
+                            $inner->where('content', 'not like', "%{$keyword}%");
+                        }
+                    });
+                }
+
+                if ($filters['priority'] === 'low') {
+                    $query->whereIn('status', ['approved', 'hidden', 'spam']);
+                }
+            })
+            ->when($filters['sla'] !== '', function ($query) use ($filters) {
+                if ($filters['sla'] === 'fresh') {
+                    $query->where('status', 'pending')->where('created_at', '>', now()->subDay());
+                }
+
+                if ($filters['sla'] === 'overdue') {
+                    $query->where('status', 'pending')->where('created_at', '<=', now()->subDay());
+                }
+
+                if ($filters['sla'] === 'critical') {
+                    $query->where('status', 'pending')->where('created_at', '<=', now()->subHours(72));
+                }
+            })
             ->when($filters['q'] !== '', function ($query) use ($filters) {
                 $q = $filters['q'];
 
@@ -35,7 +71,8 @@ class ModerationController extends Controller
                         ->orWhereHas('author', fn ($author) => $author->where('name', 'like', "%{$q}%"));
                 });
             })
-            ->latest()
+            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END ASC")
+            ->oldest('created_at')
             ->paginate(20)
             ->withQueryString()
             ->through(fn (Comment $comment) => [
@@ -45,6 +82,8 @@ class ModerationController extends Controller
                 'created_at' => $comment->created_at->toDateTimeString(),
                 'author' => $comment->author,
                 'article' => $comment->article,
+                'priority' => $this->resolveCommentPriority($comment),
+                'sla' => $this->resolveCommentSla($comment),
             ]);
 
         return Inertia::render('Editor/Moderation/Comments', [
@@ -107,12 +146,45 @@ class ModerationController extends Controller
             'q' => trim((string) $request->query('q', '')),
             'status' => (string) $request->query('status', ''),
             'subject' => (string) $request->query('subject', ''),
+            'priority' => (string) $request->query('priority', ''),
+            'sla' => (string) $request->query('sla', ''),
         ];
 
         $reports = Report::query()
             ->with(['reporter:id,name,email', 'reportable'])
             ->when($filters['status'] !== '', fn ($query) => $query->where('status', $filters['status']))
             ->when($filters['subject'] !== '', fn ($query) => $query->where('reportable_type', $this->subjectToClass($filters['subject'])))
+            ->when($filters['priority'] !== '', function ($query) use ($filters) {
+                if ($filters['priority'] === 'high') {
+                    $query->where('status', 'pending')->where(function ($inner) {
+                        foreach ($this->priorityKeywords() as $keyword) {
+                            $inner->orWhere('reason', 'like', "%{$keyword}%")
+                                ->orWhere('note', 'like', "%{$keyword}%");
+                        }
+                    });
+                }
+
+                if ($filters['priority'] === 'medium') {
+                    $query->where('status', 'pending');
+                }
+
+                if ($filters['priority'] === 'low') {
+                    $query->whereIn('status', ['resolved', 'dismissed']);
+                }
+            })
+            ->when($filters['sla'] !== '', function ($query) use ($filters) {
+                if ($filters['sla'] === 'fresh') {
+                    $query->where('status', 'pending')->where('created_at', '>', now()->subDay());
+                }
+
+                if ($filters['sla'] === 'overdue') {
+                    $query->where('status', 'pending')->where('created_at', '<=', now()->subDay());
+                }
+
+                if ($filters['sla'] === 'critical') {
+                    $query->where('status', 'pending')->where('created_at', '<=', now()->subHours(72));
+                }
+            })
             ->when($filters['q'] !== '', function ($query) use ($filters) {
                 $q = $filters['q'];
 
@@ -122,7 +194,8 @@ class ModerationController extends Controller
                         ->orWhereHas('reporter', fn ($reporter) => $reporter->where('name', 'like', "%{$q}%"));
                 });
             })
-            ->latest()
+            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END ASC")
+            ->oldest('created_at')
             ->paginate(20)
             ->withQueryString()
             ->through(function (Report $report): array {
@@ -140,6 +213,8 @@ class ModerationController extends Controller
                     'subject_key' => $subjectKey,
                     'subject_summary' => $this->resolveSubjectSummary($report),
                     'can_apply_subject_action' => (bool) $report->reportable,
+                    'priority' => $this->resolveReportPriority($report),
+                    'sla' => $this->resolveReportSla($report),
                 ];
             });
 
@@ -488,5 +563,87 @@ class ModerationController extends Controller
         }
 
         abort_unless($user->can('reports.subject_action.basic'), 403);
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private function priorityKeywords(): array
+    {
+        return ['spam', 'scam', 'penipuan', 'judi', 'porn', 'kebencian', 'hoax'];
+    }
+
+    private function resolveCommentPriority(Comment $comment): string
+    {
+        if ($comment->status !== 'pending') {
+            return 'low';
+        }
+
+        $content = str((string) $comment->content)->lower()->toString();
+        foreach ($this->priorityKeywords() as $keyword) {
+            if (str_contains($content, $keyword)) {
+                return 'high';
+            }
+        }
+
+        return 'medium';
+    }
+
+    /**
+     * @return array{label:string,hours:int,is_overdue:bool}
+     */
+    private function resolveCommentSla(Comment $comment): array
+    {
+        if ($comment->status !== 'pending') {
+            return ['label' => 'closed', 'hours' => 0, 'is_overdue' => false];
+        }
+
+        $hours = (int) $comment->created_at->diffInHours(now());
+        if ($hours >= 72) {
+            return ['label' => 'critical', 'hours' => $hours, 'is_overdue' => true];
+        }
+
+        if ($hours >= 24) {
+            return ['label' => 'overdue', 'hours' => $hours, 'is_overdue' => true];
+        }
+
+        return ['label' => 'fresh', 'hours' => $hours, 'is_overdue' => false];
+    }
+
+    private function resolveReportPriority(Report $report): string
+    {
+        if ($report->status !== 'pending') {
+            return 'low';
+        }
+
+        $payload = str("{$report->reason} {$report->note}")->lower()->toString();
+        foreach ($this->priorityKeywords() as $keyword) {
+            if (str_contains($payload, $keyword)) {
+                return 'high';
+            }
+        }
+
+        return 'medium';
+    }
+
+    /**
+     * @return array{label:string,hours:int,is_overdue:bool}
+     */
+    private function resolveReportSla(Report $report): array
+    {
+        if ($report->status !== 'pending') {
+            return ['label' => 'closed', 'hours' => 0, 'is_overdue' => false];
+        }
+
+        $hours = (int) $report->created_at->diffInHours(now());
+        if ($hours >= 72) {
+            return ['label' => 'critical', 'hours' => $hours, 'is_overdue' => true];
+        }
+
+        if ($hours >= 24) {
+            return ['label' => 'overdue', 'hours' => $hours, 'is_overdue' => true];
+        }
+
+        return ['label' => 'fresh', 'hours' => $hours, 'is_overdue' => false];
     }
 }

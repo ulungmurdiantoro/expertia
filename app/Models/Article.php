@@ -22,8 +22,10 @@ class Article extends Model
         'slug',
         'excerpt',
         'content',
+        'writing_source',
         'thumbnail',
         'thumbnail_alt',
+        'thumbnail_source',
         'status',
         'editorial_status',
         'visibility',
@@ -73,6 +75,11 @@ class Article extends Model
         return $this->hasMany(Comment::class);
     }
 
+    public function bookmarks(): HasMany
+    {
+        return $this->hasMany(Bookmark::class);
+    }
+
     public function reviews(): HasMany
     {
         return $this->hasMany(ArticleReview::class);
@@ -81,5 +88,15 @@ class Article extends Model
     public function views(): HasMany
     {
         return $this->hasMany(ArticleView::class);
+    }
+
+    public function reactions(): HasMany
+    {
+        return $this->hasMany(ArticleReaction::class);
+    }
+
+    public function recommendationSeeds(): HasMany
+    {
+        return $this->hasMany(RecommendationSeed::class);
     }
 }

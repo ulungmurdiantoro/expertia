@@ -12,6 +12,8 @@ const filterForm = useForm({
     q: props.filters?.q ?? '',
     status: props.filters?.status ?? '',
     subject: props.filters?.subject ?? '',
+    priority: props.filters?.priority ?? '',
+    sla: props.filters?.sla ?? '',
 });
 
 const statusForm = useForm({
@@ -127,6 +129,18 @@ const submitBulkSubjectAction = () => {
                         <option value="article">article</option>
                         <option value="comment">comment</option>
                     </select>
+                    <select v-model="filterForm.priority" class="rounded-md border-gray-300">
+                        <option value="">Semua priority</option>
+                        <option value="high">high</option>
+                        <option value="medium">medium</option>
+                        <option value="low">low</option>
+                    </select>
+                    <select v-model="filterForm.sla" class="rounded-md border-gray-300">
+                        <option value="">Semua SLA</option>
+                        <option value="fresh">fresh</option>
+                        <option value="overdue">overdue</option>
+                        <option value="critical">critical</option>
+                    </select>
                     <div class="flex gap-2">
                         <button type="submit" class="rounded bg-indigo-600 px-3 py-2 text-sm text-white">Filter</button>
                         <button type="button" @click="resetFilters" class="rounded bg-gray-600 px-3 py-2 text-sm text-white">Reset</button>
@@ -178,6 +192,13 @@ const submitBulkSubjectAction = () => {
                             <p class="mt-1 text-sm text-gray-700">Reason: {{ report.reason }}</p>
                             <p class="mt-1 text-sm text-gray-700">{{ report.note }}</p>
                             <p class="mt-2 text-xs text-gray-500">Reporter: {{ report.reporter?.name }} | Status: {{ report.status }}</p>
+                            <p class="mt-1 text-xs text-gray-500">
+                                Priority:
+                                <span class="font-semibold uppercase">{{ report.priority }}</span>
+                                | SLA:
+                                <span class="font-semibold uppercase">{{ report.sla?.label }}</span>
+                                <span v-if="report.sla?.hours">({{ report.sla.hours }}h)</span>
+                            </p>
                             <Link :href="route('editor.moderation.reports.show', report.id)" class="mt-2 inline-block text-xs font-medium text-indigo-600">
                                 Lihat detail
                             </Link>
