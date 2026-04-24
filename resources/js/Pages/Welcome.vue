@@ -245,7 +245,7 @@ const featureGrid = props.latest.slice(0, 6);
                     </div>
                     <div class="flex items-center lg:justify-end">
                         <Link
-                            :href="canRegister ? route('register') : route('login')"
+                            :href="canRegister ? route('register.author') : route('login')"
                             class="inline-flex items-center gap-2 rounded-md bg-[#FF7950] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#eb6239]"
                         >
                             <i class="fa-solid fa-pen-nib text-xs"></i>

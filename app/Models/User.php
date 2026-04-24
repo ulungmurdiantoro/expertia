@@ -35,6 +35,12 @@ class User extends Authenticatable
         'bio',
         'website',
         'institution',
+        'position',
+        'gender',
+        'whatsapp_number',
+        'institution_unit',
+        'linkedin_url',
+        'expertise_areas',
         'social_links',
         'status',
     ];
@@ -63,6 +69,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'expertise_areas' => 'array',
             'social_links' => 'array',
         ];
     }

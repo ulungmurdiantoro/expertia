@@ -31,9 +31,14 @@ const quickLinks = [
             <div class="flex items-center gap-6">
                 <Link href="/" class="inline-flex">
                     <img
+                        src="/assets/logo/LOGO-EXPERTIA-003.png"
+                        alt="Expertia"
+                        class="h-8 w-auto sm:hidden"
+                    />
+                    <img
                         src="/assets/logo/LOGO-EXPERTIA-005.png"
                         alt="Expertia"
-                        class="h-8 w-auto sm:h-9"
+                        class="hidden h-9 w-auto sm:block"
                     />
                 </Link>
 
@@ -76,6 +81,14 @@ const quickLinks = [
                     <Link
                         v-if="canRegister"
                         :href="route('register')"
+                        class="inline-flex items-center gap-2 rounded-md border border-zinc-300 px-3 py-2 font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#0f5f74]"
+                    >
+                        <i class="fa-solid fa-user-plus text-xs"></i>
+                        Daftar
+                    </Link>
+                    <Link
+                        v-if="canRegister"
+                        :href="route('register.author')"
                         class="inline-flex items-center gap-2 rounded-md bg-[#E80EB5] px-3 py-2 font-medium text-white hover:bg-[#ca0a9d]"
                     >
                         <i class="fa-solid fa-pen-to-square text-xs"></i>
