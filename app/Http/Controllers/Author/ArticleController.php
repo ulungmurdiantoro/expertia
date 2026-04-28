@@ -6,12 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreArticleRequest;
 use App\Http\Requests\UpdateArticleRequest;
 use App\Models\Article;
+use App\Models\ArticleReview;
 use App\Models\Category;
 use App\Models\User;
 use App\Models\UserNotification;
 use App\Services\EventTrackingService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -20,27 +22,81 @@ use Inertia\Response;
 
 class ArticleController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        $user = request()->user();
+        $user = $request->user();
+        $filters = [
+            'q' => trim((string) $request->query('q', '')),
+            'status' => (string) $request->query('status', ''),
+            'editorial_status' => (string) $request->query('editorial_status', ''),
+            'category' => (string) $request->query('category', ''),
+        ];
 
         $articles = Article::query()
-            ->with('category:id,name')
-            ->when(!$user->hasAnyRole(['admin', 'super-admin']), fn ($query) => $query->where('user_id', $user->id))
+            ->with(['category:id,name', 'latestReview.editor:id,name,email'])
+            ->withCount(['comments', 'bookmarks', 'reactions'])
+            ->when(! $user->can('articles.update.any'), fn ($query) => $query->where('user_id', $user->id))
+            ->when($filters['status'] !== '', fn ($query) => $query->where('status', $filters['status']))
+            ->when($filters['editorial_status'] !== '', fn ($query) => $query->where('editorial_status', $filters['editorial_status']))
+            ->when($filters['category'] !== '', fn ($query) => $query->where('category_id', $filters['category']))
+            ->when($filters['q'] !== '', function ($query) use ($filters): void {
+                $q = $filters['q'];
+
+                $query->where(function ($inner) use ($q): void {
+                    $inner->where('title', 'like', "%{$q}%")
+                        ->orWhere('excerpt', 'like', "%{$q}%");
+                });
+            })
             ->latest()
             ->paginate(15)
+            ->withQueryString()
             ->through(fn (Article $article) => [
                 'id' => $article->id,
                 'title' => $article->title,
                 'slug' => $article->slug,
+                'excerpt' => $article->excerpt,
                 'status' => $article->status,
                 'editorial_status' => $article->editorial_status,
+                'submitted_at' => optional($article->submitted_at)?->toDateTimeString(),
+                'published_at' => optional($article->published_at)?->toDateTimeString(),
+                'scheduled_at' => optional($article->scheduled_at)?->toDateTimeString(),
                 'category' => $article->category,
+                'engagement' => [
+                    'views' => $article->view_count,
+                    'comments' => $article->comments_count,
+                    'bookmarks' => $article->bookmarks_count,
+                    'reactions' => $article->reactions_count,
+                ],
+                'latest_review' => $article->latestReview ? [
+                    'action' => $article->latestReview->action,
+                    'note' => $article->latestReview->note,
+                    'reviewed_at' => optional($article->latestReview->reviewed_at)?->toDateTimeString(),
+                    'editor' => $article->latestReview->editor,
+                ] : null,
                 'updated_at' => $article->updated_at->toDateTimeString(),
             ]);
 
+        $statsQuery = Article::query()
+            ->when(! $user->can('articles.update.any'), fn ($query) => $query->where('user_id', $user->id));
+
         return Inertia::render('Author/Articles/Index', [
             'articles' => $articles,
+            'filters' => $filters,
+            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'stats' => [
+                'total' => (clone $statsQuery)->count(),
+                'draft' => (clone $statsQuery)->where('status', 'draft')->count(),
+                'in_review' => (clone $statsQuery)->where('status', 'in_review')->count(),
+                'published' => (clone $statsQuery)->where('status', 'published')->count(),
+                'scheduled' => (clone $statsQuery)->where('status', 'scheduled')->count(),
+                'revision_requested' => (clone $statsQuery)->where('editorial_status', 'revision_requested')->count(),
+                'total_views' => (clone $statsQuery)->sum('view_count'),
+                'total_bookmarks' => (clone $statsQuery)->sum('bookmark_count'),
+                'reviews_today' => ArticleReview::query()
+                    ->whereIn('article_id', (clone $statsQuery)->pluck('id'))
+                    ->whereDate('reviewed_at', today())
+                    ->count(),
+            ],
         ]);
     }
 
@@ -166,7 +222,7 @@ class ArticleController extends Controller
     private function authorizeOwnership(Article $article): void
     {
         $user = request()->user();
-        abort_unless($article->user_id === $user->id || $user->hasAnyRole(['admin', 'super-admin']), 403);
+        abort_unless($article->user_id === $user->id || $user->can('articles.update.any'), 403);
     }
 
     private function makeUniqueSlug(string $title, ?int $ignoreId = null): string
@@ -189,7 +245,7 @@ class ArticleController extends Controller
     }
 
     /**
-     * @param array<string,mixed> $payload
+     * @param  array<string,mixed>  $payload
      * @return array<string,mixed>
      */
     private function normalizeSchedulePayload(array $payload): array

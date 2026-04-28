@@ -33,8 +33,19 @@ const reportCommentForm = useForm({
 const reactionForm = useForm({
     type: 'like',
 });
+const shareForm = useForm({
+    channel: 'web',
+});
+
+const approvalForm = useForm({});
+const reviewForm = useForm({
+    note: '',
+});
 
 const activeReplyId = ref(null);
+const openReviewAction = ref(null);
+const localShareCount = ref(Number(props.article?.share_count || 0));
+const shareFeedback = ref('');
 
 const escapeHtml = (value) => {
     return value
@@ -124,96 +135,251 @@ const clearReaction = () => {
         preserveScroll: true,
     });
 };
+
+const recordShare = (channel = 'web') => {
+    shareForm.channel = channel;
+    shareForm.post(route('articles.shares.store', props.article.slug), {
+        preserveScroll: true,
+        onSuccess: (page) => {
+            localShareCount.value = Number(page.props.article?.share_count || localShareCount.value + 1);
+        },
+        onError: () => {
+            localShareCount.value += 1;
+        },
+    });
+};
+
+const shareArticle = async () => {
+    if (props.article.is_preview) {
+        return;
+    }
+
+    const shareUrl = window.location.href;
+    const sharePayload = {
+        title: props.article.title,
+        text: props.article.excerpt || props.article.title,
+        url: shareUrl,
+    };
+
+    try {
+        if (navigator.share) {
+            await navigator.share(sharePayload);
+            recordShare('native');
+            shareFeedback.value = 'Artikel dibagikan.';
+            return;
+        }
+
+        await navigator.clipboard.writeText(shareUrl);
+        recordShare('copy_link');
+        shareFeedback.value = 'Tautan disalin.';
+    } catch (error) {
+        if (error?.name === 'AbortError') {
+            return;
+        }
+
+        recordShare('attempt');
+        shareFeedback.value = 'Tautan siap dibagikan.';
+    }
+};
+
+const approveArticle = () => {
+    approvalForm.patch(route('editor.reviews.approve', props.article.id), {
+        preserveScroll: true,
+    });
+};
+
+const rejectArticle = () => {
+    reviewForm.patch(route('editor.reviews.reject', props.article.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            reviewForm.reset();
+            openReviewAction.value = null;
+        },
+    });
+};
+
+const requestRevision = () => {
+    reviewForm.patch(route('editor.reviews.request-revision', props.article.id), {
+        preserveScroll: true,
+        onSuccess: () => {
+            reviewForm.reset();
+            openReviewAction.value = null;
+        },
+    });
+};
 </script>
 
 <template>
     <Head :title="article.title" />
 
-    <div class="min-h-screen bg-[#f8fafc] text-zinc-900">
-        <PublicHeader />
-        <div class="mx-auto max-w-screen-2xl px-4 py-8 sm:px-6 lg:px-8">
-            <Link :href="route('articles.index')" class="text-sm font-medium text-zinc-500 hover:text-[#1BD6FF]">&lt;- Kembali ke artikel</Link>
-
-            <div class="mt-4 grid gap-6 lg:grid-cols-12">
-                <article class="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8 lg:col-span-8">
-                    <div class="flex flex-wrap items-center gap-2 text-xs">
-                        <span class="rounded-full bg-[#e8faff] px-2.5 py-1 font-medium text-[#0f5f74]">{{ article.category?.name ?? 'Umum' }}</span>
-                        <span class="rounded-full bg-[#ffe9f9] px-2.5 py-1 font-medium text-[#E80EB5]" v-for="tag in article.tags || []" :key="tag.id">#{{ tag.name }}</span>
+    <div class="min-h-screen bg-white text-zinc-950">
+        <PublicHeader v-if="!article.is_preview" />
+        <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+            <div v-if="article.is_preview" class="mb-5 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-amber-700">Preview editorial</p>
+                        <p class="mt-1 text-sm text-gray-600">Artikel ini belum dipublikasikan. Interaksi publik dinonaktifkan pada mode preview.</p>
                     </div>
+                    <div class="flex flex-wrap gap-2">
+                        <Link :href="route('editor.reviews.index')" class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                            Kembali
+                        </Link>
+                        <button
+                            @click="approveArticle"
+                            :disabled="approvalForm.processing"
+                            class="rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                        >
+                            Approve
+                        </button>
+                        <button
+                            @click="openReviewAction = openReviewAction === 'reject' ? null : 'reject'"
+                            class="rounded bg-rose-600 px-3 py-2 text-sm font-medium text-white"
+                        >
+                            Reject
+                        </button>
+                        <button
+                            @click="openReviewAction = openReviewAction === 'revision' ? null : 'revision'"
+                            class="rounded bg-amber-500 px-3 py-2 text-sm font-medium text-white"
+                        >
+                            Request Revision
+                        </button>
+                    </div>
+                </div>
 
-                    <h1 class="mt-4 font-serif text-3xl font-bold leading-tight text-zinc-900 sm:text-4xl">{{ article.title }}</h1>
+                <div v-if="openReviewAction" class="mt-4 rounded-md bg-gray-50 p-4">
+                    <label class="text-sm font-medium text-gray-700">
+                        Catatan {{ openReviewAction === 'reject' ? 'penolakan' : 'revisi' }}
+                    </label>
+                    <textarea
+                        v-model="reviewForm.note"
+                        rows="3"
+                        class="mt-2 w-full rounded-md border-gray-300 text-sm"
+                        placeholder="Tulis catatan untuk author"
+                    ></textarea>
+                    <p v-if="reviewForm.errors.note" class="mt-1 text-sm text-rose-600">{{ reviewForm.errors.note }}</p>
+                    <div class="mt-3 flex gap-2">
+                        <button
+                            v-if="openReviewAction === 'reject'"
+                            @click="rejectArticle"
+                            :disabled="reviewForm.processing"
+                            class="rounded bg-rose-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                        >
+                            Kirim Reject
+                        </button>
+                        <button
+                            v-else
+                            @click="requestRevision"
+                            :disabled="reviewForm.processing"
+                            class="rounded bg-amber-500 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                        >
+                            Kirim Revisi
+                        </button>
+                        <button @click="openReviewAction = null" class="rounded bg-gray-700 px-3 py-2 text-sm font-medium text-white">
+                            Batal
+                        </button>
+                    </div>
+                </div>
+            </div>
 
-                    <div class="mt-4 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
-                        <span>{{ formatDate(article.published_at) }}</span>
-                        <span>|</span>
-                        <span>{{ article.view_count || 0 }} views</span>
-                        <span>|</span>
-                        <span>{{ article.comment_count || 0 }} komentar</span>
+            <Link
+                v-if="!article.is_preview"
+                :href="route('articles.index')"
+                class="text-sm font-semibold text-zinc-500 hover:text-[#1BD6FF]"
+            >
+                &lt;- Kembali ke artikel
+            </Link>
+
+            <div class="mt-5 grid gap-10 lg:grid-cols-12">
+                <article class="lg:col-span-8">
+                    <div class="border-b border-zinc-200 pb-6">
+                        <div class="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
+                            <span class="text-[#1BD6FF]">{{ article.category?.name ?? 'Umum' }}</span>
+                            <span v-for="tag in article.tags || []" :key="tag.id">#{{ tag.name }}</span>
+                        </div>
+
+                        <h1 class="mt-4 font-serif text-4xl font-bold leading-[1.05] tracking-tight text-zinc-950 sm:text-5xl">{{ article.title }}</h1>
+
+                        <p v-if="article.excerpt" class="mt-5 text-xl leading-8 text-zinc-600">
+                            {{ article.excerpt }}
+                        </p>
+
+                        <div class="mt-5 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
+                            <span>{{ article.author?.name || 'Redaksi' }}</span>
+                            <span>|</span>
+                            <span>{{ article.is_preview ? `${article.status} / ${article.editorial_status}` : formatDate(article.published_at) }}</span>
+                            <span>|</span>
+                            <span>{{ article.view_count || 0 }} views</span>
+                            <span>|</span>
+                            <span>{{ article.comment_count || 0 }} komentar</span>
+                            <span>|</span>
+                            <span>{{ localShareCount }} share</span>
+                        </div>
                     </div>
 
                     <img
                         v-if="article.thumbnail_url"
                         :src="article.thumbnail_url"
                         :alt="article.thumbnail_alt || article.title"
-                        class="mt-6 h-auto w-full rounded-xl object-cover"
+                        class="mt-6 h-auto w-full object-cover"
                     />
 
-                    <div class="article-content prose prose-zinc mt-8 max-w-none leading-relaxed text-zinc-700" v-html="renderedArticleContent"></div>
+                    <div class="article-content prose prose-zinc mt-8 max-w-none leading-relaxed text-zinc-800" v-html="renderedArticleContent"></div>
                 </article>
 
-                <aside class="space-y-4 lg:col-span-4">
-                    <section class="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+                <aside class="space-y-6 lg:col-span-4">
+                    <section class="border-t-4 border-[#1BD6FF] bg-zinc-50 p-5">
                         <p class="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">Penulis</p>
                         <div class="mt-2">
                             <Link
                                 v-if="article.author?.profile_slug"
                                 :href="route('authors.show', article.author.profile_slug)"
-                                class="font-serif text-2xl font-semibold text-zinc-900 hover:text-[#E80EB5]"
+                                class="font-serif text-2xl font-semibold text-zinc-950 hover:text-[#1BD6FF]"
                             >
                                 {{ article.author.name }}
                             </Link>
-                            <p v-else class="font-serif text-2xl font-semibold text-zinc-900">{{ article.author?.name || 'Redaksi' }}</p>
+                            <p v-else class="font-serif text-2xl font-semibold text-zinc-950">{{ article.author?.name || 'Redaksi' }}</p>
                         </div>
                         <p class="mt-3 text-sm text-zinc-600">
                             Baca profil penulis untuk melihat artikel lainnya dan ikuti pembaruan terbaru.
                         </p>
                     </section>
 
-                    <section class="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+                    <section class="border-t border-zinc-200 pt-5">
                         <p class="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">Ringkasan</p>
                         <p class="mt-2 text-sm leading-relaxed text-zinc-600">
                             {{ article.excerpt || 'Ringkasan belum tersedia untuk artikel ini.' }}
                         </p>
                     </section>
 
-                    <section class="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+                    <section class="border-t border-zinc-200 pt-5">
                         <p class="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">Aksi</p>
                         <div class="mt-3 flex flex-wrap gap-2">
                             <template v-if="viewer.is_authenticated">
                                 <button
                                     @click="react('like')"
-                                    class="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF]"
+                                    class="inline-flex items-center gap-1.5 border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#1BD6FF]"
                                 >
                                     <i class="fa-solid fa-thumbs-up text-[11px]"></i>
                                     Like ({{ article.reactions?.like || 0 }})
                                 </button>
                                 <button
                                     @click="react('love')"
-                                    class="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#E80EB5]"
+                                    class="inline-flex items-center gap-1.5 border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#1BD6FF]"
                                 >
                                     <i class="fa-solid fa-heart text-[11px]"></i>
                                     Love ({{ article.reactions?.love || 0 }})
                                 </button>
                                 <button
                                     @click="react('insightful')"
-                                    class="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF]"
+                                    class="inline-flex items-center gap-1.5 border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#1BD6FF]"
                                 >
                                     <i class="fa-solid fa-lightbulb text-[11px]"></i>
                                     Insightful ({{ article.reactions?.insightful || 0 }})
                                 </button>
                                 <button
                                     @click="react('celebrate')"
-                                    class="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#FF7950]"
+                                    class="inline-flex items-center gap-1.5 border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#1BD6FF]"
                                 >
                                     <i class="fa-solid fa-champagne-glasses text-[11px]"></i>
                                     Celebrate ({{ article.reactions?.celebrate || 0 }})
@@ -230,37 +396,48 @@ const clearReaction = () => {
                             <button
                                 v-if="viewer.is_authenticated && article.can_report"
                                 @click="reportArticle"
-                                class="inline-flex items-center gap-1.5 rounded-md border border-[#FF7950] px-3 py-1.5 text-xs font-medium text-[#c9532f] hover:bg-[#fff1ec]"
+                                class="inline-flex items-center gap-1.5 border border-[#1BD6FF] px-3 py-1.5 text-xs font-medium text-[#1BD6FF] hover:bg-cyan-50"
                             >
                                 <i class="fa-solid fa-flag text-[11px]"></i>
                                 Laporkan Artikel
                             </button>
+                            <button
+                                v-if="!article.is_preview"
+                                type="button"
+                                @click="shareArticle"
+                                :disabled="shareForm.processing"
+                                class="inline-flex items-center gap-1.5 border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#1BD6FF] disabled:opacity-50"
+                            >
+                                <i class="fa-solid fa-share-nodes text-[11px]"></i>
+                                Share ({{ localShareCount }})
+                            </button>
                             <Link
                                 :href="route('articles.index')"
-                                class="inline-flex items-center gap-1.5 rounded-md border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#0f5f74]"
+                                class="inline-flex items-center gap-1.5 border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#1BD6FF]"
                             >
                                 <i class="fa-solid fa-newspaper text-[11px]"></i>
                                 Artikel Lainnya
                             </Link>
                         </div>
+                        <p v-if="shareFeedback" class="mt-2 text-xs text-zinc-500">{{ shareFeedback }}</p>
                     </section>
                 </aside>
             </div>
 
-            <section class="mt-10 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
-                <h2 class="font-serif text-2xl font-semibold text-zinc-900">Komentar</h2>
+            <section class="mt-12 border-t border-zinc-200 pt-8">
+                <h2 class="font-serif text-3xl font-semibold text-zinc-950">Komentar</h2>
 
                 <form v-if="viewer.is_authenticated" @submit.prevent="submitComment" class="mt-4 space-y-3">
                     <textarea
                         v-model="commentForm.content"
                         rows="3"
                         placeholder="Tulis komentar..."
-                        class="w-full rounded-lg border-zinc-300 text-sm focus:border-[#1BD6FF] focus:ring-[#1BD6FF]"
+                        class="w-full border-zinc-300 text-sm focus:border-[#1BD6FF] focus:ring-[#1BD6FF]"
                     />
                     <button
                         type="submit"
                         :disabled="commentForm.processing"
-                        class="rounded-md bg-[#1BD6FF] px-4 py-2 text-sm font-medium text-white hover:bg-[#15bfdc] disabled:opacity-50"
+                        class="bg-zinc-950 px-4 py-2 text-sm font-semibold text-white hover:bg-[#1BD6FF] disabled:opacity-50"
                     >
                         Kirim Komentar
                     </button>
@@ -271,7 +448,7 @@ const clearReaction = () => {
                     <article
                         v-for="comment in comments"
                         :key="comment.id"
-                        class="rounded-xl border border-zinc-200 bg-zinc-50 p-4"
+                        class="border-b border-zinc-200 py-4"
                     >
                         <div class="flex items-start justify-between gap-4">
                             <div>
@@ -283,14 +460,14 @@ const clearReaction = () => {
                                 <button
                                     v-if="comment.can_reply"
                                     @click="openReply(comment.id)"
-                                    class="text-xs font-medium text-[#0f5f74] hover:text-[#1BD6FF]"
+                                    class="text-xs font-medium text-zinc-700 hover:text-[#1BD6FF]"
                                 >
                                     Balas
                                 </button>
                                 <button
                                     v-if="comment.can_report"
                                     @click="reportComment(comment.id)"
-                                    class="text-xs font-medium text-[#c9532f] hover:text-[#FF7950]"
+                                    class="text-xs font-medium text-[#1BD6FF]"
                                 >
                                     Laporkan
                                 </button>
@@ -313,12 +490,12 @@ const clearReaction = () => {
                                 v-model="replyForm.content"
                                 rows="2"
                                 placeholder="Tulis balasan..."
-                                class="w-full rounded-lg border-zinc-300 text-sm focus:border-[#E80EB5] focus:ring-[#E80EB5]"
+                                class="w-full border-zinc-300 text-sm focus:border-[#1BD6FF] focus:ring-[#1BD6FF]"
                             />
                             <button
                                 type="submit"
                                 :disabled="replyForm.processing"
-                                class="rounded-md bg-[#E80EB5] px-3 py-1.5 text-xs font-medium text-white hover:bg-[#ca0a9d]"
+                                class="bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1BD6FF]"
                             >
                                 Kirim Balasan
                             </button>
@@ -357,7 +534,7 @@ const clearReaction = () => {
             </section>
         </div>
 
-        <PublicFooter />
+        <PublicFooter v-if="!article.is_preview" />
     </div>
 </template>
 

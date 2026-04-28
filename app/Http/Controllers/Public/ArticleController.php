@@ -226,6 +226,7 @@ class ArticleController extends Controller
                 'view_count' => $article->view_count,
                 'comment_count' => $article->comment_count,
                 'bookmark_count' => $article->bookmark_count,
+                'share_count' => $article->share_count,
                 'reaction_count' => $article->like_count,
                 'reactions' => [
                     'like' => (int) ($reactionCounts['like'] ?? 0),
@@ -248,8 +249,7 @@ class ArticleController extends Controller
         Article $article,
         EventTrackingService $eventTrackingService,
         ArticleScoringService $scoringService
-    ): void
-    {
+    ): void {
         $viewer = $request->user();
         $sessionId = $request->session()->getId();
         $ipHash = $request->ip() ? hash('sha256', (string) $request->ip()) : null;
@@ -259,8 +259,8 @@ class ArticleController extends Controller
             ->where('article_id', $article->id)
             ->where('viewed_at', '>=', $cutoff)
             ->when($viewer, fn ($query) => $query->where('user_id', $viewer->id))
-            ->when(!$viewer && $sessionId, fn ($query) => $query->where('session_id', $sessionId))
-            ->when(!$viewer && !$sessionId && $ipHash, fn ($query) => $query->where('ip_hash', $ipHash))
+            ->when(! $viewer && $sessionId, fn ($query) => $query->where('session_id', $sessionId))
+            ->when(! $viewer && ! $sessionId && $ipHash, fn ($query) => $query->where('ip_hash', $ipHash))
             ->exists();
 
         if ($existing) {

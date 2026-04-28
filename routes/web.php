@@ -1,11 +1,12 @@
 <?php
 
-use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\AuditLogController as AdminAuditLogController;
+use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Author\ArticleController as AuthorArticleController;
 use App\Http\Controllers\Author\InsightController as AuthorInsightController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Editor\ModerationController;
 use App\Http\Controllers\Editor\ReviewQueueController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Public\ArticleController as PublicArticleController;
@@ -13,7 +14,7 @@ use App\Http\Controllers\Public\AuthorProfileController;
 use App\Http\Controllers\Public\CommentController;
 use App\Http\Controllers\Public\ReactionController;
 use App\Http\Controllers\Public\ReportController;
-use App\Http\Controllers\Editor\ModerationController;
+use App\Http\Controllers\Public\ShareController;
 use App\Http\Controllers\User\BookmarkController;
 use App\Http\Controllers\User\FollowController;
 use App\Http\Controllers\User\NotificationController;
@@ -124,11 +125,12 @@ Route::middleware('auth')->group(function () {
     Route::delete('/articles/{article:slug}/comments/{comment}', [CommentController::class, 'destroy'])->name('articles.comments.destroy');
     Route::post('/articles/{article:slug}/reactions', [ReactionController::class, 'store'])->name('articles.reactions.store');
     Route::delete('/articles/{article:slug}/reactions', [ReactionController::class, 'destroy'])->name('articles.reactions.destroy');
+    Route::post('/articles/{article:slug}/shares', [ShareController::class, 'store'])->name('articles.shares.store');
     Route::post('/articles/{article:slug}/reports', [ReportController::class, 'storeArticle'])->name('articles.reports.store');
     Route::post('/articles/{article:slug}/comments/{comment}/reports', [ReportController::class, 'storeComment'])->name('articles.comments.reports.store');
 });
 
-Route::middleware(['auth', 'verified', 'role_or_permission:author|verified-expert|admin|super-admin'])->prefix('author')->name('author.')->group(function () {
+Route::middleware(['auth', 'verified', 'role_or_permission:author|verified-expert|editor|admin|super-admin'])->prefix('author')->name('author.')->group(function () {
     Route::get('/articles', [AuthorArticleController::class, 'index'])->middleware('can:articles.create')->name('articles.index');
     Route::get('/articles/create', [AuthorArticleController::class, 'create'])->middleware('can:articles.create')->name('articles.create');
     Route::post('/articles', [AuthorArticleController::class, 'store'])->middleware('can:articles.create')->name('articles.store');
@@ -142,6 +144,7 @@ Route::middleware(['auth', 'verified', 'role_or_permission:author|verified-exper
 
 Route::middleware(['auth', 'verified', 'role_or_permission:editor|admin|super-admin'])->prefix('editor')->name('editor.')->group(function () {
     Route::get('/reviews', [ReviewQueueController::class, 'index'])->middleware('can:articles.review')->name('reviews.index');
+    Route::get('/reviews/{article}/preview', [ReviewQueueController::class, 'preview'])->middleware('can:articles.review')->name('reviews.preview');
     Route::patch('/reviews/{article}/approve', [ReviewQueueController::class, 'approve'])->middleware('can:articles.publish')->name('reviews.approve');
     Route::patch('/reviews/{article}/reject', [ReviewQueueController::class, 'reject'])->middleware('can:articles.review')->name('reviews.reject');
     Route::patch('/reviews/{article}/request-revision', [ReviewQueueController::class, 'requestRevision'])->middleware('can:articles.review')->name('reviews.request-revision');

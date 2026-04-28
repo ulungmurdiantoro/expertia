@@ -4,15 +4,16 @@ namespace App\Models;
 
 use App\Models\Concerns\HasPublicId;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Article extends Model
 {
-    use HasFactory, SoftDeletes, HasPublicId;
+    use HasFactory, HasPublicId, SoftDeletes;
 
     protected $fillable = [
         'public_id',
@@ -83,6 +84,11 @@ class Article extends Model
     public function reviews(): HasMany
     {
         return $this->hasMany(ArticleReview::class);
+    }
+
+    public function latestReview(): HasOne
+    {
+        return $this->hasOne(ArticleReview::class)->latestOfMany('reviewed_at');
     }
 
     public function views(): HasMany

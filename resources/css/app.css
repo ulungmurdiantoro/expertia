@@ -1,3 +1,33 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    body {
+        background: #ffffff;
+        color: #18181b;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .font-serif {
+        font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+    }
+}
+
+@layer components {
+    .section-kicker {
+        @apply text-xs font-semibold uppercase tracking-[0.18em] text-[#E80EB5];
+    }
+
+    .section-heading {
+        @apply flex items-center justify-between gap-4 border-b-2 border-[#1BD6FF] pb-2;
+    }
+
+    .section-heading h2 {
+        @apply text-sm font-semibold uppercase tracking-[0.14em] text-zinc-950;
+    }
+
+    .section-heading a {
+        @apply text-xs font-semibold uppercase tracking-[0.12em] text-zinc-600 hover:text-[#0f5f74];
+    }
+}

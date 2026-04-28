@@ -74,7 +74,7 @@ const navItems = computed(() => [
                 href: route('author.articles.index'),
                 active: isActive('author.articles.*'),
                 icon: 'fa-solid fa-pen-nib',
-                visible: hasAnyRole(['author', 'verified-expert', 'admin', 'super-admin']),
+                visible: hasAnyRole(['author', 'verified-expert', 'editor', 'admin', 'super-admin']),
                 badge: null,
             },
             {
@@ -82,7 +82,7 @@ const navItems = computed(() => [
                 href: route('author.insights.index'),
                 active: isActive('author.insights.*'),
                 icon: 'fa-solid fa-chart-column',
-                visible: hasAnyRole(['author', 'verified-expert', 'admin', 'super-admin']),
+                visible: hasAnyRole(['author', 'verified-expert', 'editor', 'admin', 'super-admin']),
                 badge: null,
             },
             {
