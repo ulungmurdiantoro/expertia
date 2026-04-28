@@ -291,7 +291,7 @@ const requestRevision = () => {
             </Link>
 
             <div class="mt-5 grid gap-10 lg:grid-cols-12">
-                <article class="lg:col-span-8">
+                <article class="lg:col-span-9">
                     <div class="border-b border-zinc-200 pb-6">
                         <div class="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
                             <span class="text-[#1BD6FF]">{{ article.category?.name ?? 'Umum' }}</span>
@@ -327,7 +327,7 @@ const requestRevision = () => {
                     <div class="article-content prose prose-zinc mt-8 max-w-none leading-relaxed text-zinc-800" v-html="renderedArticleContent"></div>
                 </article>
 
-                <aside class="space-y-6 lg:col-span-4">
+                <aside class="space-y-6 lg:col-span-3">
                     <section class="border-t-4 border-[#1BD6FF] bg-zinc-50 p-5">
                         <p class="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">Penulis</p>
                         <div class="mt-2">
@@ -352,7 +352,7 @@ const requestRevision = () => {
                         </p>
                     </section>
 
-                    <section class="border-t border-zinc-200 pt-5">
+                    <section v-if="!article.is_preview" class="border-t border-zinc-200 pt-5">
                         <p class="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">Aksi</p>
                         <div class="mt-3 flex flex-wrap gap-2">
                             <template v-if="viewer.is_authenticated">
@@ -402,7 +402,6 @@ const requestRevision = () => {
                                 Laporkan Artikel
                             </button>
                             <button
-                                v-if="!article.is_preview"
                                 type="button"
                                 @click="shareArticle"
                                 :disabled="shareForm.processing"
@@ -424,7 +423,7 @@ const requestRevision = () => {
                 </aside>
             </div>
 
-            <section class="mt-12 border-t border-zinc-200 pt-8">
+            <section v-if="!article.is_preview" class="mt-12 border-t border-zinc-200 pt-8">
                 <h2 class="font-serif text-3xl font-semibold text-zinc-950">Komentar</h2>
 
                 <form v-if="viewer.is_authenticated" @submit.prevent="submitComment" class="mt-4 space-y-3">

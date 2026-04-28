@@ -104,7 +104,7 @@ const formatDate = (value) => {
             <section class="divide-y divide-zinc-200">
                 <article v-for="article in articles.data" :key="article.id" class="py-6">
                     <Link :href="route('articles.show', article.slug)" class="group grid gap-5 sm:grid-cols-12">
-                        <div class="sm:col-span-8">
+                        <div class="sm:col-span-9">
                             <div class="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
                                 <span class="text-[#1BD6FF]">{{ article.category?.name ?? 'Tanpa kategori' }}</span>
                                 <span>|</span>
@@ -124,7 +124,7 @@ const formatDate = (value) => {
                                 <span>{{ article.comment_count || 0 }} komentar</span>
                             </div>
                         </div>
-                        <div class="sm:col-span-4">
+                        <div class="sm:col-span-3">
                             <img
                                 v-if="article.thumbnail_url"
                                 :src="article.thumbnail_url"
