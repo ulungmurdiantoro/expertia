@@ -212,9 +212,9 @@ const requestRevision = () => {
 <template>
     <Head :title="article.title" />
 
-    <div class="min-h-screen bg-white text-zinc-950">
+    <div class="min-h-screen bg-[#f8fafc] text-zinc-900">
         <PublicHeader v-if="!article.is_preview" />
-        <div class="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <div class="mx-auto grid w-full max-w-screen-2xl gap-10 px-4 py-8 sm:px-6 lg:px-8">
             <div v-if="article.is_preview" class="mb-5 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>

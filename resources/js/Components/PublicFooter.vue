@@ -1,6 +1,6 @@
 <template>
     <footer class="mt-14 border-t border-zinc-200 bg-white">
-        <div class="mx-auto grid w-full max-w-6xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-3 lg:px-8">
+        <div class="mx-auto grid w-full max-w-screen-2xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-3 lg:px-8">
             <section class="lg:col-span-1">
                 <img
                     src="/assets/logo/LOGO-EXPERTIA-005.png"

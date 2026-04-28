@@ -58,10 +58,10 @@ const formatDate = (value) => {
 <template>
     <Head :title="pageMeta.title || 'Artikel'" />
 
-    <div class="min-h-screen bg-white text-zinc-950">
+    <div class="min-h-screen bg-[#f8fafc] text-zinc-900">
         <PublicHeader />
 
-        <main class="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
+        <main class="mx-auto grid w-full max-w-screen-2xl gap-10 px-4 py-8 sm:px-6 lg:px-8">
             <header class="border-b border-zinc-200 pb-6">
                 <p class="section-kicker">{{ pageMeta.highlight || 'Jelajahi' }}</p>
                 <div class="mt-2 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">

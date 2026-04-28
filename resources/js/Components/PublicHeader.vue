@@ -25,7 +25,7 @@ const headerCategories = [
     <header class="border-b border-zinc-200 bg-white">
         <div class="h-1 bg-gradient-to-r from-[#1BD6FF] via-[#E80EB5] to-[#FF7950]"></div>
 
-        <div class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-5 sm:px-6 lg:px-8">
+        <div class="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 py-5 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between gap-4">
                 <Link href="/" class="group inline-flex flex-col leading-none">
                     <img
