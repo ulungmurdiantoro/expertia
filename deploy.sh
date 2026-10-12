@@ -10,6 +10,11 @@
 #   FORCE=1 bash deploy.sh         jalankan walau tidak ada commit baru
 #   SKIP_BUILD=1 bash deploy.sh    lewati npm ci && npm run build
 #   RELOAD_FPM=1 bash deploy.sh    reload php-fpm di akhir (butuh sudo)
+#   ALLOW_NON_PRODUCTION=1 ...     izinkan .env non-produksi (server uji/staging)
+#
+# Deploy dihentikan bila .env belum untuk produksi (APP_ENV, APP_DEBUG, APP_URL)
+# atau ada file yang isinya diubah langsung di server. Perubahan izin file saja
+# (chmod) diabaikan.
 #
 # Variabel lain: APP_DIR (default folder script ini), BRANCH (default main),
 # KEEP_BACKUPS (default 10), FPM_SERVICE (default php8.3-fpm).
@@ -274,9 +279,25 @@ fi
 [[ -n "$(env_get APP_KEY)" ]] || fail "APP_KEY di .env kosong. Jangan membuat key baru bila sebelumnya ada (sesi dan data terenkripsi akan rusak); pulihkan .env yang benar."
 ok ".env ditemukan, APP_KEY terisi"
 
-[[ "$(env_get APP_ENV)" == "production" ]] || warn "APP_ENV=$(env_get APP_ENV) (seharusnya production)."
-[[ "$(env_get APP_DEBUG)" == "false" ]] || warn "APP_DEBUG=$(env_get APP_DEBUG). Di produksi harus false agar detail error tidak tampil ke pengunjung."
-[[ "$(env_get APP_URL)" == https://* ]] || warn "APP_URL=$(env_get APP_URL). Gunakan https://expertia.id agar canonical dan og:image benar."
+# Nilai ini ikut dikunci oleh config:cache di akhir deploy. APP_DEBUG=true membuka
+# detail error dan debugbar ke publik; APP_URL dipakai untuk alamat gambar
+# (Storage::url) dan og:image, jadi http://localhost membuat semua gambar rusak.
+env_problems=()
+[[ "$(env_get APP_ENV)" == "production" ]] || env_problems+=("APP_ENV=$(env_get APP_ENV)  -> ubah menjadi APP_ENV=production")
+[[ "$(env_get APP_DEBUG)" == "false" ]] || env_problems+=("APP_DEBUG=$(env_get APP_DEBUG)  -> ubah menjadi APP_DEBUG=false")
+[[ "$(env_get APP_URL)" == https://* ]] || env_problems+=("APP_URL=$(env_get APP_URL)  -> ubah menjadi alamat situs, mis. APP_URL=https://expertia.id")
+if [[ ${#env_problems[@]} -gt 0 ]]; then
+    for problem in "${env_problems[@]}"; do
+        warn "$problem"
+    done
+    if [[ "${ALLOW_NON_PRODUCTION:-0}" != "1" ]]; then
+        fail "Konfigurasi .env belum untuk produksi (lihat di atas). Perbaiki .env lalu jalankan ulang.
+       Untuk server uji/staging, jalankan dengan ALLOW_NON_PRODUCTION=1."
+    fi
+    warn "ALLOW_NON_PRODUCTION=1: tetap dilanjutkan."
+else
+    ok "APP_ENV=production, APP_DEBUG=false, APP_URL=$(env_get APP_URL)"
+fi
 
 for writable_dir in storage storage/framework/views storage/logs bootstrap/cache public; do
     [[ -w "$writable_dir" ]] || fail "Folder $writable_dir tidak bisa ditulis oleh user $(whoami). Perbaiki izin, misalnya: sudo chown -R $(whoami):www-data storage bootstrap/cache public && sudo chmod -R ug+rwX storage bootstrap/cache"
@@ -287,11 +308,21 @@ resolve_sqlite_path
 sqlite_relative="${SQLITE_PATH#"$APP_DIR"/}"
 
 # File yang diubah langsung di server akan membuat merge gagal di tengah jalan.
-# Database SQLite dikecualikan karena ditangani khusus (lihat untrack_sqlite_database).
-local_changes="$(git status --porcelain --untracked-files=no | grep -vE " (${sqlite_relative//./\\.}|${sqlite_relative//./\\.}-journal)\$" || true)"
+# Perubahan izin file (chmod pada storage dsb.) diabaikan lewat core.fileMode=false;
+# database SQLite dikecualikan karena ditangani khusus (lihat park_sqlite_database).
+sqlite_pattern=" (${sqlite_relative//./\\.}|${sqlite_relative//./\\.}-journal)\$"
+mode_only_changes="$(git status --porcelain --untracked-files=no | grep -cvE "$sqlite_pattern" || true)"
+local_changes="$(git -c core.fileMode=false status --porcelain --untracked-files=no | grep -vE "$sqlite_pattern" || true)"
 if [[ -n "$local_changes" ]]; then
     printf '%s\n' "$local_changes" | sed 's/^/      /' >&2
-    fail "Ada file aplikasi yang diubah langsung di server. Simpan dulu (git stash) atau kembalikan (git checkout -- <file>) sebelum deploy."
+    if grep -q 'package-lock.json' <<< "$local_changes"; then
+        warn "package-lock.json biasanya berubah karena 'npm install' di server. Deploy memakai versi repo (npm ci), jadi aman dikembalikan."
+    fi
+    fail "Ada file yang isinya diubah langsung di server (daftar di atas). Lihat isinya dengan 'git diff <file>',
+       simpan salinannya bila perlu, lalu kembalikan dengan: git checkout -- <file>"
+fi
+if [[ "$mode_only_changes" -gt 0 ]]; then
+    ok "Perubahan izin file ($mode_only_changes file) diabaikan; isi file tidak berubah"
 fi
 ok "Tidak ada perubahan lokal yang bentrok"
 
@@ -337,7 +368,7 @@ run php artisan down --retry=60 --refresh=15
 
 info "Memasang commit $(git rev-parse --short "origin/$BRANCH")"
 park_sqlite_database
-run git merge --ff-only --quiet "origin/$BRANCH"
+run git -c core.fileMode=false merge --ff-only --quiet "origin/$BRANCH"
 unpark_sqlite_database
 
 # Cache lama bisa merujuk kelas yang sudah tidak ada; hapus filenya langsung
