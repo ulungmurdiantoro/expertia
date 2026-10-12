@@ -14,6 +14,15 @@ class DatabaseSeeder extends Seeder
         $this->call(RoleAndPermissionSeeder::class);
         $this->call(ExpertiseOptionSeeder::class);
 
+        // Akun demo memakai password yang tertulis di repo publik ini; di produksi
+        // seeder hanya menyiapkan role dan pilihan kepakaran. Upsert di bawah juga
+        // akan mereset password akun demo yang sudah ada kembali ke password123.
+        if (app()->environment('production')) {
+            $this->command?->warn('APP_ENV=production: akun demo dan konten contoh tidak dibuat.');
+
+            return;
+        }
+
         $superAdmin = $this->upsertSeedUser(
             name: 'Super Admin',
             email: 'superadmin@example.com',

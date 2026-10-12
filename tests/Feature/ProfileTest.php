@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ProfileTest extends TestCase
@@ -41,6 +43,37 @@ class ProfileTest extends TestCase
         $this->assertSame('Test User', $user->name);
         $this->assertSame('test@example.com', $user->email);
         $this->assertNull($user->email_verified_at);
+    }
+
+    public function test_profile_form_with_photo_is_sent_as_post_with_method_spoofing(): void
+    {
+        // Bentuk request dari UpdateProfileInformationForm.vue: multipart via POST + _method,
+        // karena PHP tidak membaca body multipart pada request PATCH.
+        Storage::fake('public');
+        $user = User::factory()->create();
+
+        $response = $this
+            ->actingAs($user)
+            ->post('/profile', [
+                '_method' => 'patch',
+                'name' => 'Admin Expertia',
+                'email' => $user->email,
+                // PNG 1x1 asli; fake()->image() butuh ekstensi GD yang tidak selalu terpasang.
+                'avatar' => UploadedFile::fake()->createWithContent(
+                    'foto.png',
+                    base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='),
+                ),
+                'remove_avatar' => '0',
+            ]);
+
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertRedirect('/profile');
+
+        $user->refresh();
+        $this->assertSame('Admin Expertia', $user->name);
+        $this->assertNotNull($user->avatar);
+        Storage::disk('public')->assertExists($user->avatar);
     }
 
     public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void

@@ -49,9 +49,16 @@ const removeAvatar = () => {
     form.remove_avatar = true;
 };
 
+// Form berisi file (foto), jadi dikirim multipart. PHP hanya membaca body multipart
+// pada POST, sehingga PATCH dikirim sebagai POST + _method (method spoofing Laravel).
 const submit = () => {
-    form.patch(route('profile.update'), {
+    form.transform((data) => ({
+        ...data,
+        _method: 'patch',
+    })).post(route('profile.update'), {
         forceFormData: true,
+        preserveScroll: true,
+        onFinish: () => form.transform((data) => data),
     });
 };
 
