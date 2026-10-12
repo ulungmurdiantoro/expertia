@@ -3,16 +3,14 @@
 namespace App\Http\Controllers\Editor;
 
 use App\Http\Controllers\Controller;
-use App\Models\ActivityLog;
+use App\Http\Resources\ArticleDetailResource;
 use App\Models\Article;
 use App\Models\ArticleReview;
 use App\Models\Category;
-use App\Models\UserNotification;
-use App\Services\ArticleScoringService;
-use App\Services\EventTrackingService;
+use App\Services\ArticleCommentThread;
+use App\Services\ArticleWorkflow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -110,76 +108,20 @@ class ReviewQueueController extends Controller
         ]);
     }
 
-    public function preview(Article $article): Response
+    public function preview(Request $request, Article $article, ArticleCommentThread $commentThread): Response
     {
         $article->load(['author:id,name,profile_slug,bio,avatar', 'category:id,name,slug', 'tags:id,name,slug']);
 
-        $reactionCounts = $article->reactions()
-            ->selectRaw('type, COUNT(*) as total')
-            ->groupBy('type')
-            ->pluck('total', 'type');
-
-        $comments = $article->comments()
-            ->where('status', 'approved')
-            ->whereNull('parent_id')
-            ->with([
-                'author:id,name,profile_slug',
-                'replies' => fn ($query) => $query
-                    ->where('status', 'approved')
-                    ->with('author:id,name,profile_slug'),
-            ])
-            ->latest()
-            ->get()
-            ->map(fn ($comment) => [
-                'id' => $comment->id,
-                'content' => $comment->content,
-                'created_at' => $comment->created_at->toDateTimeString(),
-                'author' => $comment->author,
-                'can_delete' => false,
-                'can_reply' => false,
-                'can_report' => false,
-                'replies' => $comment->replies->map(fn ($reply) => [
-                    'id' => $reply->id,
-                    'content' => $reply->content,
-                    'created_at' => $reply->created_at->toDateTimeString(),
-                    'author' => $reply->author,
-                    'can_delete' => false,
-                    'can_report' => false,
-                ])->values(),
-            ])
-            ->values();
-
         return Inertia::render('Public/Articles/Show', [
             'article' => [
-                'id' => $article->id,
-                'public_id' => $article->public_id,
-                'title' => $article->title,
-                'slug' => $article->slug,
-                'excerpt' => $article->excerpt,
-                'content' => $article->content,
-                'thumbnail_url' => $article->thumbnail ? Storage::url($article->thumbnail) : null,
-                'thumbnail_alt' => $article->thumbnail_alt,
-                'published_at' => optional($article->published_at)?->toDateTimeString(),
+                ...ArticleDetailResource::make($article)->resolve($request),
                 'status' => $article->status,
                 'editorial_status' => $article->editorial_status,
                 'is_preview' => true,
-                'author' => $article->author,
-                'category' => $article->category,
-                'tags' => $article->tags,
-                'view_count' => $article->view_count,
-                'comment_count' => $article->comment_count,
-                'bookmark_count' => $article->bookmark_count,
-                'share_count' => $article->share_count,
-                'reaction_count' => $article->like_count,
-                'reactions' => [
-                    'like' => (int) ($reactionCounts['like'] ?? 0),
-                    'love' => (int) ($reactionCounts['love'] ?? 0),
-                    'insightful' => (int) ($reactionCounts['insightful'] ?? 0),
-                    'celebrate' => (int) ($reactionCounts['celebrate'] ?? 0),
-                ],
+                'reactions' => ['like' => 0, 'love' => 0, 'insightful' => 0, 'celebrate' => 0],
                 'can_report' => false,
             ],
-            'comments' => $comments,
+            'comments' => $commentThread->forArticle($article, $request->user(), interactive: false),
             'viewer' => [
                 'is_authenticated' => false,
                 'reaction' => null,
@@ -187,149 +129,36 @@ class ReviewQueueController extends Controller
         ]);
     }
 
-    public function approve(
-        Article $article,
-        EventTrackingService $eventTrackingService,
-        ArticleScoringService $articleScoringService
-    ): RedirectResponse {
-        $isScheduledFuture = $article->scheduled_at && $article->scheduled_at->isFuture();
-        $nextStatus = $isScheduledFuture ? 'scheduled' : 'published';
-        $article->update([
-            'status' => $nextStatus,
-            'editorial_status' => 'approved',
-            'reviewed_at' => now(),
-            'published_at' => $isScheduledFuture ? null : ($article->published_at ?? now()),
-        ]);
-
-        ArticleReview::create([
-            'article_id' => $article->id,
-            'editor_id' => request()->user()->id,
-            'action' => 'approve',
-            'reviewed_at' => now(),
-        ]);
-        ActivityLog::create([
-            'user_id' => request()->user()->id,
-            'action' => 'editorial.article.approved',
-            'subject_type' => Article::class,
-            'subject_id' => $article->id,
-            'meta_json' => ['status' => $nextStatus],
-            'created_at' => now(),
-        ]);
-
-        UserNotification::create([
-            'user_id' => $article->user_id,
-            'type' => $isScheduledFuture ? 'article.scheduled' : 'article.approved',
-            'title' => $isScheduledFuture ? 'Artikel dijadwalkan tayang' : 'Artikel disetujui',
-            'body' => $isScheduledFuture
-                ? "Artikel '{$article->title}' disetujui dan dijadwalkan tayang pada {$article->scheduled_at?->toDateTimeString()}."
-                : "Artikel '{$article->title}' disetujui dan dipublikasikan.",
-            'data_json' => [
-                'article_id' => $article->id,
-                'article_slug' => $article->slug,
-                'scheduled_at' => optional($article->scheduled_at)?->toDateTimeString(),
-            ],
-        ]);
-        $eventTrackingService->track(request(), 'editorial.article.approve', $article);
-        if (! $isScheduledFuture) {
-            $articleScoringService->scoreArticle($article->fresh());
-        }
+    public function approve(Request $request, Article $article, ArticleWorkflow $workflow): RedirectResponse
+    {
+        $isScheduled = $workflow->approve($article, $request);
 
         return back()->with(
             'success',
-            $isScheduledFuture
+            $isScheduled
                 ? 'Artikel disetujui dan dijadwalkan tayang otomatis.'
                 : 'Artikel disetujui dan dipublikasikan.'
         );
     }
 
-    public function reject(Request $request, Article $article, EventTrackingService $eventTrackingService): RedirectResponse
+    public function reject(Request $request, Article $article, ArticleWorkflow $workflow): RedirectResponse
     {
         $validated = $request->validate([
             'note' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $article->update([
-            'status' => 'rejected',
-            'editorial_status' => 'rejected',
-            'reviewed_at' => now(),
-        ]);
-
-        ArticleReview::create([
-            'article_id' => $article->id,
-            'editor_id' => request()->user()->id,
-            'action' => 'reject',
-            'note' => $validated['note'] ?? null,
-            'reviewed_at' => now(),
-        ]);
-        ActivityLog::create([
-            'user_id' => request()->user()->id,
-            'action' => 'editorial.article.rejected',
-            'subject_type' => Article::class,
-            'subject_id' => $article->id,
-            'meta_json' => ['note' => $validated['note'] ?? null],
-            'created_at' => now(),
-        ]);
-
-        UserNotification::create([
-            'user_id' => $article->user_id,
-            'type' => 'article.rejected',
-            'title' => 'Artikel ditolak',
-            'body' => "Artikel '{$article->title}' ditolak oleh editor.",
-            'data_json' => [
-                'article_id' => $article->id,
-                'article_slug' => $article->slug,
-                'note' => $validated['note'] ?? null,
-            ],
-        ]);
-        $eventTrackingService->track($request, 'editorial.article.reject', $article, [
-            'note' => $validated['note'] ?? null,
-        ]);
+        $workflow->reject($article, $request, $validated['note'] ?? null);
 
         return back()->with('success', 'Artikel ditolak.');
     }
 
-    public function requestRevision(Request $request, Article $article, EventTrackingService $eventTrackingService): RedirectResponse
+    public function requestRevision(Request $request, Article $article, ArticleWorkflow $workflow): RedirectResponse
     {
         $validated = $request->validate([
             'note' => ['required', 'string', 'max:1000'],
         ]);
 
-        $article->update([
-            'status' => 'draft',
-            'editorial_status' => 'revision_requested',
-            'reviewed_at' => now(),
-        ]);
-
-        ArticleReview::create([
-            'article_id' => $article->id,
-            'editor_id' => request()->user()->id,
-            'action' => 'revision_requested',
-            'note' => $validated['note'],
-            'reviewed_at' => now(),
-        ]);
-        ActivityLog::create([
-            'user_id' => request()->user()->id,
-            'action' => 'editorial.article.revision_requested',
-            'subject_type' => Article::class,
-            'subject_id' => $article->id,
-            'meta_json' => ['note' => $validated['note']],
-            'created_at' => now(),
-        ]);
-
-        UserNotification::create([
-            'user_id' => $article->user_id,
-            'type' => 'article.revision_requested',
-            'title' => 'Revisi artikel diminta',
-            'body' => "Editor meminta revisi untuk artikel '{$article->title}'.",
-            'data_json' => [
-                'article_id' => $article->id,
-                'article_slug' => $article->slug,
-                'note' => $validated['note'],
-            ],
-        ]);
-        $eventTrackingService->track($request, 'editorial.article.request_revision', $article, [
-            'note' => $validated['note'],
-        ]);
+        $workflow->requestRevision($article, $request, $validated['note']);
 
         return back()->with('success', 'Permintaan revisi dikirim ke author.');
     }

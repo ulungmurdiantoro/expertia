@@ -133,7 +133,7 @@ class DashboardController extends Controller
             'excerpt' => $article->excerpt,
             'thumbnail_url' => $article->thumbnail ? Storage::url($article->thumbnail) : null,
             'published_at' => optional($article->published_at)?->toDateTimeString(),
-            'author' => $article->author,
+            'author' => $article->author ? PublicAuthorResource::make($article->author)->resolve() : null,
             'category' => $article->category,
             'view_count' => $article->view_count,
             'comment_count' => $article->comment_count,

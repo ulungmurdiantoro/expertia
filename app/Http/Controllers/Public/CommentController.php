@@ -10,6 +10,7 @@ use App\Services\ArticleScoringService;
 use App\Services\EventTrackingService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 
 class CommentController extends Controller
 {
@@ -20,7 +21,7 @@ class CommentController extends Controller
         ArticleScoringService $articleScoringService
     ): RedirectResponse
     {
-        abort_if($article->status !== 'published', 404);
+        abort_unless($article->isPublished(), 404);
 
         $validated = $request->validate([
             'content' => ['required', 'string', 'max:2000'],
@@ -93,10 +94,8 @@ class CommentController extends Controller
     {
         abort_unless($comment->article_id === $article->id, 404);
 
-        $isOwner = $comment->user_id === $request->user()->id;
-        $isArticleOwner = $article->user_id === $request->user()->id;
-        $canModerate = $request->user()->can('comments.moderate');
-        abort_unless($isOwner || $isArticleOwner || $canModerate, 403);
+        $comment->setRelation('article', $article);
+        Gate::authorize('delete', $comment);
 
         if (!$comment->trashed()) {
             $wasApproved = $comment->status === 'approved';

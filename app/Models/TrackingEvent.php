@@ -3,13 +3,15 @@
 namespace App\Models;
 
 use App\Models\Concerns\HasPublicId;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class TrackingEvent extends Model
 {
-    use HasFactory, HasPublicId;
+    use HasFactory, HasPublicId, MassPrunable;
 
     protected $fillable = [
         'public_id',
@@ -39,5 +41,13 @@ class TrackingEvent extends Model
     public function article(): BelongsTo
     {
         return $this->belongsTo(Article::class);
+    }
+
+    /**
+     * Dihapus oleh model:prune setelah setahun. Insights memakai paling jauh 180 hari (90 hari + periode pembanding).
+     */
+    public function prunable(): Builder
+    {
+        return static::where('occurred_at', '<', now()->subDays(365));
     }
 }

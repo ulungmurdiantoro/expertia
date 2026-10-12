@@ -2,7 +2,11 @@
 
 namespace App\Models;
 
+use App\Enums\ArticleStatus;
+use App\Enums\EditorialStatus;
 use App\Models\Concerns\HasPublicId;
+use App\Support\ArticleHtmlSanitizer;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -54,6 +58,54 @@ class Article extends Model
             'published_at' => 'datetime',
             'scheduled_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Isi artikel selalu disaring saat disimpan, dari jalur mana pun (controller, seeder, tinker).
+     */
+    protected function content(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => app(ArticleHtmlSanitizer::class)->sanitize($value),
+        );
+    }
+
+    public function hasStatus(ArticleStatus ...$statuses): bool
+    {
+        return in_array($this->status, array_map(fn (ArticleStatus $status) => $status->value, $statuses), true);
+    }
+
+    public function hasEditorialStatus(EditorialStatus ...$statuses): bool
+    {
+        return in_array($this->editorial_status, array_map(fn (EditorialStatus $status) => $status->value, $statuses), true);
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->hasStatus(ArticleStatus::Published);
+    }
+
+    /**
+     * Author hanya boleh mengubah naskah yang belum masuk antrean review atau belum tayang;
+     * setelah itu perubahan lewat redaksi (lihat Kebijakan Editorial: koreksi).
+     */
+    public function isEditableByAuthor(): bool
+    {
+        return $this->hasStatus(ArticleStatus::Draft, ArticleStatus::Rejected);
+    }
+
+    public function canBeSubmitted(): bool
+    {
+        return $this->hasStatus(ArticleStatus::Draft, ArticleStatus::Rejected);
+    }
+
+    /**
+     * Slug dibekukan begitu artikel disetujui agar URL yang sudah dibagikan tidak berubah.
+     */
+    public function hasFrozenSlug(): bool
+    {
+        return $this->published_at !== null
+            || $this->hasStatus(ArticleStatus::Published, ArticleStatus::Scheduled, ArticleStatus::Archived);
     }
 
     public function author(): BelongsTo

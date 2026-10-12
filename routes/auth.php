@@ -16,13 +16,12 @@ Route::middleware('guest')->group(function () {
         ->name('register');
 
     Route::post('register', [RegisteredUserController::class, 'store'])
+        ->middleware('throttle:register')
         ->name('register.store');
 
-    Route::get('register/author', [RegisteredUserController::class, 'createAuthor'])
-        ->name('register.author');
-
-    Route::post('register/author', [RegisteredUserController::class, 'storeAuthor'])
-        ->name('register.author.store');
+    // Pendaftaran author publik ditutup: kontributor mendaftar lewat formulir program
+    // kontributor, lalu akunnya dibuat redaksi (admin.contributors.create).
+    Route::redirect('register/author', '/kontributor')->name('register.author');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');

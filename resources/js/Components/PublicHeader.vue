@@ -1,86 +1,97 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { contact } from '@/site';
+import { Link, router, usePage } from '@inertiajs/vue3';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
-defineProps({
-    canLogin: {
-        type: Boolean,
-        default: true,
-    },
-    canRegister: {
-        type: Boolean,
-        default: true,
-    },
+const page = usePage();
+const logoFailed = ref(false);
+const menu = ref(null);
+
+const navItems = computed(() => [
+    { label: 'Artikel', href: route('articles.index'), key: 'articles' },
+    { label: 'Riset & Inovasi', href: route('articles.index', { category: 'riset-inovasi' }), key: 'riset-inovasi' },
+    { label: 'Perspektif Pakar', href: route('articles.index', { category: 'perspektif-pakar' }), key: 'perspektif-pakar' },
+    { label: 'Tentang', href: route('tentang'), key: 'tentang' },
+]);
+
+const currentKey = computed(() => {
+    const url = new URL(page.url, 'http://x');
+
+    if (url.pathname === '/articles') {
+        return url.searchParams.get('category') || 'articles';
+    }
+
+    return url.pathname.replace(/^\//, '');
 });
 
-const headerCategories = [
-    { label: 'Pendidikan', href: route('articles.index', { category: 'pendidikan' }) },
-    { label: 'Sains', href: route('articles.index', { category: 'sains' }) },
-    { label: 'Teknologi', href: route('articles.index', { category: 'teknologi' }) },
-    { label: 'Ekonomi', href: route('articles.index', { category: 'ekonomi' }) },
-    { label: 'Kebijakan', href: route('articles.index', { category: 'kebijakan' }) },
-];
+let stopListening = null;
+
+onMounted(() => {
+    stopListening = router.on('navigate', () => {
+        if (menu.value) {
+            menu.value.open = false;
+        }
+    });
+});
+
+onUnmounted(() => stopListening?.());
 </script>
 
 <template>
-    <header class="border-b border-zinc-200 bg-white">
-        <div class="h-1 bg-gradient-to-r from-[#1BD6FF] via-[#E80EB5] to-[#FF7950]"></div>
+    <div class="announce">
+        <div class="wrap">
+            <span class="dot" aria-hidden="true"></span>
+            <span>Program Kontributor Perdana dibuka. Riset, paten, atau kepakaran Anda kami bantu publikasikan, gratis.</span>
+            <a :href="contact.registrationUrl" target="_blank" rel="noopener">Daftar →</a>
+        </div>
+    </div>
 
-        <div class="mx-auto flex w-full max-w-screen-2xl flex-col gap-4 px-4 py-5 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between gap-4">
-                <Link href="/" class="group inline-flex flex-col leading-none">
-                    <img
-                        src="/assets/logo/LOGO-EXPERTIA-005.png"
-                        alt="Expertia"
-                        class="hidden h-10 w-auto sm:block"
-                    />
-                    <img
-                        src="/assets/logo/LOGO-EXPERTIA-003.png"
-                        alt="Expertia"
-                        class="h-9 w-auto sm:hidden"
-                    />
-                </Link>
+    <header class="site-header">
+        <div class="wrap">
+            <Link class="logo" :class="{ noimg: logoFailed }" href="/" aria-label="Expertia, ke beranda">
+                <img
+                    src="/assets/logo/LOGO-EXPERTIA-005.png"
+                    alt="Expertia"
+                    width="197"
+                    height="30"
+                    @error="logoFailed = true"
+                />
+                <span class="wordmark">expertia</span>
+            </Link>
 
-                <nav v-if="canLogin" class="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 text-sm">
-                    <Link :href="route('articles.trending')" class="font-medium text-zinc-700 hover:text-[#0f5f74]">
-                        Trending
-                    </Link>
-                    <Link v-if="$page.props.auth.user" :href="route('me.feed')" class="font-medium text-zinc-700 hover:text-[#0f5f74]">
-                        Feed
-                    </Link>
-                    <Link v-if="$page.props.auth.user" :href="route('dashboard')" class="border-l border-zinc-300 pl-4 font-medium text-zinc-950 hover:text-[#0f5f74]">
-                        Dashboard
-                    </Link>
-                    <template v-else>
-                        <Link :href="route('login')" class="font-medium text-zinc-700 hover:text-[#0f5f74]">
-                            Masuk
-                        </Link>
-                        <Link v-if="canRegister" :href="route('register')" class="font-medium text-zinc-700 hover:text-[#0f5f74]">
-                            Daftar
-                        </Link>
-                        <Link
-                            v-if="canRegister"
-                            :href="route('register.author')"
-                            class="border-l border-zinc-300 pl-4 font-semibold text-[#E80EB5] hover:text-zinc-950"
-                        >
-                            Menulis
-                        </Link>
-                    </template>
-                </nav>
-            </div>
-
-            <nav class="flex items-center gap-5 overflow-x-auto border-t border-zinc-200 pt-3 text-[13px] font-semibold uppercase tracking-[0.08em] text-zinc-600">
-                <Link :href="route('articles.index')" class="shrink-0 text-zinc-950 hover:text-[#0f5f74]">
-                    Semua
-                </Link>
+            <nav class="nav" aria-label="Navigasi utama">
                 <Link
-                    v-for="item in headerCategories"
-                    :key="item.label"
+                    v-for="item in navItems"
+                    :key="item.key"
                     :href="item.href"
-                    class="shrink-0 hover:text-[#0f5f74]"
+                    :aria-current="currentKey === item.key ? 'page' : undefined"
                 >
                     {{ item.label }}
                 </Link>
+                <Link v-if="page.props.auth.user" :href="route('dashboard')">Dashboard</Link>
+                <Link class="btn" :href="route('kontributor')">Jadi Kontributor</Link>
             </nav>
+
+            <details ref="menu" class="menu">
+                <summary aria-label="Buka menu">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                        <path d="M4 7h16M4 12h16M4 17h16" />
+                    </svg>
+                </summary>
+                <div class="menu-panel">
+                    <Link
+                        v-for="item in navItems"
+                        :key="item.key"
+                        :href="item.href"
+                        :aria-current="currentKey === item.key ? 'page' : undefined"
+                    >
+                        {{ item.label }}
+                    </Link>
+                    <Link :href="route('kontak')">Kontak</Link>
+                    <Link v-if="page.props.auth.user" :href="route('dashboard')">Dashboard</Link>
+                    <Link class="btn" :href="route('kontributor')">Jadi Kontributor</Link>
+                </div>
+            </details>
         </div>
     </header>
 </template>

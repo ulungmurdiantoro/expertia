@@ -1,4 +1,5 @@
 <script setup>
+import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -30,11 +31,17 @@ const props = defineProps({
     },
     switchLabel: {
         type: String,
-        default: 'Daftar langsung sebagai Author',
+        default: null,
     },
     switchRoute: {
         type: String,
-        default: 'register.author',
+        default: null,
+    },
+    // Form "Tambah Akun Kontributor" di area admin: tampil di layout dashboard dan
+    // admin tidak ikut login sebagai akun baru.
+    adminMode: {
+        type: Boolean,
+        default: false,
     },
 });
 
@@ -50,6 +57,7 @@ const form = useForm({
     linkedin_url: '',
     expertise_topics: [],
     expertise_other: '',
+    role: 'author',
 });
 
 const isAuthor = computed(() => props.registrationType === 'author');
@@ -114,13 +122,19 @@ const submit = () => {
     }
 
     form.post(route(props.submitRoute), {
+        onSuccess: () => {
+            if (props.adminMode) {
+                form.reset();
+                authorStep.value = 1;
+            }
+        },
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
 };
 </script>
 
 <template>
-    <GuestLayout variant="wide">
+    <component :is="adminMode ? AuthenticatedLayout : GuestLayout" v-bind="adminMode ? {} : { variant: 'wide' }">
         <Head :title="title" />
 
         <section v-if="!isAuthor" class="mx-auto w-full max-w-screen-2xl rounded-xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
@@ -191,7 +205,7 @@ const submit = () => {
                     </div>
 
                     <div class="flex items-center justify-between gap-3 pt-1">
-                        <Link :href="route(switchRoute)" class="text-sm text-zinc-600 underline hover:text-zinc-900">
+                        <Link v-if="switchRoute" :href="route(switchRoute)" class="text-sm text-zinc-600 underline hover:text-zinc-900">
                             {{ switchLabel }}
                         </Link>
                         <PrimaryButton
@@ -237,14 +251,14 @@ const submit = () => {
             </div>
         </section>
 
-        <section v-else class="mx-auto w-full max-w-5xl rounded-xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+        <section v-else class="mx-auto my-8 w-full max-w-5xl rounded-xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
             <div class="flex items-start justify-between gap-4">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#0f5f74]">Registrasi Author</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[#0f5f74]">{{ adminMode ? 'Akun Kontributor' : 'Registrasi Author' }}</p>
                     <h1 class="mt-2 font-serif text-2xl font-bold leading-tight text-zinc-900 sm:text-3xl">{{ title }}</h1>
                     <p v-if="subtitle" class="mt-2 max-w-3xl text-sm leading-relaxed text-zinc-600">{{ subtitle }}</p>
                 </div>
-                <Link :href="route('login')" class="text-sm text-[#0f5f74] underline hover:text-[#1BD6FF]">
+                <Link v-if="!adminMode" :href="route('login')" class="text-sm text-[#0f5f74] underline hover:text-[#1BD6FF]">
                     Sudah punya akun?
                 </Link>
             </div>
@@ -282,6 +296,18 @@ const submit = () => {
                         <InputLabel for="password_confirmation" value="Konfirmasi Password" />
                         <TextInput id="password_confirmation" type="password" class="mt-1 block w-full" v-model="form.password_confirmation" required autocomplete="new-password" />
                         <InputError class="mt-2" :message="form.errors.password_confirmation || localErrors.password_confirmation" />
+                    </div>
+                    <div v-if="adminMode" class="sm:col-span-2">
+                        <InputLabel for="role" value="Status kontributor" />
+                        <select
+                            id="role"
+                            v-model="form.role"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                        >
+                            <option value="author">Kontributor</option>
+                            <option value="verified-expert">Kontributor Terverifikasi (identitas dan afiliasi sudah diperiksa)</option>
+                        </select>
+                        <InputError class="mt-2" :message="form.errors.role" />
                     </div>
                 </div>
 
@@ -352,7 +378,7 @@ const submit = () => {
 
                 <div class="mt-7 flex items-center justify-between gap-3 border-t border-zinc-200 pt-5">
                     <div class="flex items-center gap-3">
-                        <Link :href="route(switchRoute)" class="text-sm text-zinc-600 underline hover:text-zinc-900">
+                        <Link v-if="switchRoute" :href="route(switchRoute)" class="text-sm text-zinc-600 underline hover:text-zinc-900">
                             {{ switchLabel }}
                         </Link>
                         <button
@@ -379,11 +405,11 @@ const submit = () => {
                             :class="{ 'opacity-25': form.processing }"
                             :disabled="form.processing"
                         >
-                            Daftar Author
+                            {{ adminMode ? 'Buat Akun Kontributor' : 'Daftar Author' }}
                         </PrimaryButton>
                     </div>
                 </div>
             </form>
         </section>
-    </GuestLayout>
+    </component>
 </template>

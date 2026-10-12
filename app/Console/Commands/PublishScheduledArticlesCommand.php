@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\ArticleStatus;
+use App\Enums\EditorialStatus;
 use App\Models\Article;
-use App\Models\UserNotification;
-use App\Services\AuditLogger;
-use App\Services\ArticleScoringService;
+use App\Services\ArticleWorkflow;
 use Illuminate\Console\Command;
 
 class PublishScheduledArticlesCommand extends Command
@@ -27,13 +27,13 @@ class PublishScheduledArticlesCommand extends Command
     /**
      * Execute the console command.
      */
-    public function handle(AuditLogger $auditLogger, ArticleScoringService $scoringService): int
+    public function handle(ArticleWorkflow $workflow): int
     {
         $limit = max(1, min((int) $this->option('limit'), 500));
 
         $articles = Article::query()
-            ->where('editorial_status', 'approved')
-            ->where('status', '!=', 'published')
+            ->where('editorial_status', EditorialStatus::Approved->value)
+            ->where('status', '!=', ArticleStatus::Published->value)
             ->whereNotNull('scheduled_at')
             ->where('scheduled_at', '<=', now())
             ->oldest('scheduled_at')
@@ -47,33 +47,7 @@ class PublishScheduledArticlesCommand extends Command
         }
 
         foreach ($articles as $article) {
-            $article->update([
-                'status' => 'published',
-                'published_at' => $article->published_at ?? now(),
-            ]);
-
-            $scoringService->scoreArticle($article);
-
-            UserNotification::create([
-                'user_id' => $article->user_id,
-                'type' => 'article.scheduled.published',
-                'title' => 'Artikel terjadwal sudah tayang',
-                'body' => "Artikel '{$article->title}' telah dipublikasikan otomatis.",
-                'data_json' => [
-                    'article_id' => $article->id,
-                    'article_slug' => $article->slug,
-                ],
-            ]);
-
-            $auditLogger->log(
-                userId: null,
-                action: 'scheduler.article.published',
-                subject: $article,
-                meta: [
-                    'scheduled_at' => optional($article->scheduled_at)?->toDateTimeString(),
-                    'published_at' => optional($article->published_at)?->toDateTimeString(),
-                ]
-            );
+            $workflow->publishScheduled($article);
         }
 
         $this->info("Berhasil publish {$articles->count()} artikel terjadwal.");

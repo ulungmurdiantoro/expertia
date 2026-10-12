@@ -33,6 +33,10 @@ const contentWordCount = computed(() => {
         .filter(Boolean).length;
 });
 
+// Dari ArticlePolicy: author tidak bisa mengubah naskah yang sedang direview atau sudah tayang.
+const canUpdate = computed(() => props.article.can_update !== false);
+const canSubmit = computed(() => props.article.can_submit === true);
+
 const onThumbnailChange = (event) => {
     form.thumbnail = event.target.files[0] ?? null;
 };
@@ -81,9 +85,10 @@ const submitForReview = () => {
     <AuthenticatedLayout>
         <template #header>
             <div class="flex items-center justify-between gap-3">
-                <h2 class="text-xl font-semibold leading-tight text-gray-800">Edit Draft</h2>
+                <h2 class="text-xl font-semibold leading-tight text-gray-800">{{ canUpdate ? 'Edit Draft' : 'Lihat Artikel' }}</h2>
                 <div class="flex items-center gap-2">
                     <button
+                        v-if="canUpdate"
                         @click="update"
                         type="button"
                         :disabled="form.processing"
@@ -91,15 +96,29 @@ const submitForReview = () => {
                     >
                         Simpan
                     </button>
-                    <button @click="submitForReview" type="button" class="rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white">
+                    <button
+                        v-if="canSubmit"
+                        @click="submitForReview"
+                        type="button"
+                        :disabled="form.processing"
+                        class="rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                    >
                         Submit Review
                     </button>
                 </div>
             </div>
         </template>
 
+        <div v-if="!canUpdate" class="mx-auto mt-6 max-w-screen-2xl px-4 sm:px-6 lg:px-8">
+            <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                Artikel ini sedang direview atau sudah tayang, jadi tidak bisa diubah dari sini.
+                Untuk koreksi, hubungi redaksi agar perubahan ikut melalui pemeriksaan editor.
+            </div>
+        </div>
+
         <div class="bg-[#f7f7f5] py-8">
             <form @submit.prevent="update" class="mx-auto grid max-w-screen-2xl gap-6 px-4 sm:px-6 lg:grid-cols-3 lg:px-8">
+                <fieldset :disabled="!canUpdate" class="contents">
                 <section class="lg:col-span-2">
                     <div class="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
                         <input
@@ -182,6 +201,7 @@ const submitForReview = () => {
                         <p class="mt-1">Editorial: <span class="font-semibold text-zinc-900">{{ article.editorial_status }}</span></p>
                     </div>
                 </aside>
+                </fieldset>
             </form>
         </div>
     </AuthenticatedLayout>

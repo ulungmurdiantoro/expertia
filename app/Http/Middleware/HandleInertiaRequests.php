@@ -45,12 +45,14 @@ class HandleInertiaRequests extends Middleware
             ],
             'flash' => [
                 'success' => fn () => $request->session()->get('success'),
+                'error' => fn () => $request->session()->get('error'),
             ],
-            'moderation' => [
-                'pending_reviews' => fn () => $isEditorScope ? Article::where('editorial_status', 'pending_review')->count() : 0,
-                'pending_comments' => fn () => $isEditorScope ? Comment::where('status', 'pending')->count() : 0,
-                'pending_reports' => fn () => $isEditorScope ? Report::where('status', 'pending')->count() : 0,
-            ],
+            // Hanya untuk tim redaksi; tidak ikut di props halaman publik.
+            'moderation' => $isEditorScope ? [
+                'pending_reviews' => fn () => Article::where('editorial_status', 'pending_review')->count(),
+                'pending_comments' => fn () => Comment::where('status', 'pending')->count(),
+                'pending_reports' => fn () => Report::where('status', 'pending')->count(),
+            ] : null,
             'notifications' => [
                 'unread_count' => fn () => $user ? UserNotification::where('user_id', $user->id)->whereNull('read_at')->count() : 0,
             ],

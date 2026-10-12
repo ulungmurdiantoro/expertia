@@ -24,6 +24,19 @@ const avatarUrl = computed(() => page.props.auth.user?.avatar_url || null);
 const userInitials = computed(() => (page.props.auth.user?.name || 'U').substring(0, 2).toUpperCase());
 const isActive = (pattern) => route().current(pattern);
 
+// Pesan hasil aksi dari server (flash) dan error transisi status artikel (errors.status).
+const dismissedFlash = ref(null);
+const flashMessage = computed(() => {
+    const errorText = page.props.flash?.error || page.props.errors?.status || page.props.errors?.throttle;
+    const message = errorText
+        ? { tone: 'error', text: errorText }
+        : page.props.flash?.success
+            ? { tone: 'success', text: page.props.flash.success }
+            : null;
+
+    return message && message.text !== dismissedFlash.value ? message : null;
+});
+
 const navItems = computed(() => [
     {
         key: 'dashboard',
@@ -119,6 +132,13 @@ const navItems = computed(() => [
                 href: route('admin.dashboard'),
                 active: isActive('admin.dashboard'),
                 icon: 'fa-solid fa-chart-line',
+                badge: null,
+            },
+            {
+                label: 'Tambah Kontributor',
+                href: route('admin.contributors.create'),
+                active: isActive('admin.contributors.*'),
+                icon: 'fa-solid fa-user-plus',
                 badge: null,
             },
             {
@@ -660,6 +680,22 @@ watch(
                         <slot name="header" />
                     </div>
                 </header>
+
+                <div
+                    v-if="flashMessage"
+                    role="status"
+                    class="mx-auto mt-4 w-full max-w-screen-2xl px-4 sm:px-6 lg:px-8"
+                >
+                    <div
+                        class="flex items-start justify-between gap-4 rounded-lg border px-4 py-3 text-sm"
+                        :class="flashMessage.tone === 'error' ? 'border-rose-200 bg-rose-50 text-rose-800' : 'border-emerald-200 bg-emerald-50 text-emerald-800'"
+                    >
+                        <span>{{ flashMessage.text }}</span>
+                        <button type="button" class="font-semibold opacity-70 hover:opacity-100" aria-label="Tutup pesan" @click="dismissedFlash = flashMessage.text">
+                            &times;
+                        </button>
+                    </div>
+                </div>
 
                 <main class="min-w-0 flex-1">
                     <slot />

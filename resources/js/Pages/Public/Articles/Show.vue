@@ -1,6 +1,6 @@
 <script setup>
-import PublicFooter from '@/Components/PublicFooter.vue';
-import PublicHeader from '@/Components/PublicHeader.vue';
+import PublicLayout from '@/Layouts/PublicLayout.vue';
+import { contact, formatDate, readingMinutes } from '@/site';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
@@ -8,6 +8,10 @@ const props = defineProps({
     article: Object,
     comments: Array,
     viewer: Object,
+    meta: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const commentForm = useForm({
@@ -33,19 +37,28 @@ const reportCommentForm = useForm({
 const reactionForm = useForm({
     type: 'like',
 });
-const shareForm = useForm({
-    channel: 'web',
-});
 
 const approvalForm = useForm({});
 const reviewForm = useForm({
     note: '',
 });
 
+const reactionTypes = [
+    { type: 'like', label: 'Suka', icon: 'fa-solid fa-thumbs-up' },
+    { type: 'love', label: 'Menyentuh', icon: 'fa-solid fa-heart' },
+    { type: 'insightful', label: 'Mencerahkan', icon: 'fa-solid fa-lightbulb' },
+    { type: 'celebrate', label: 'Apresiasi', icon: 'fa-solid fa-hands-clapping' },
+];
+
 const activeReplyId = ref(null);
+const isSharing = ref(false);
 const openReviewAction = ref(null);
-const localShareCount = ref(Number(props.article?.share_count || 0));
-const shareFeedback = ref('');
+// Pesan hasil aksi (flash dari server), ditampilkan dekat tombol yang ditekan.
+const toolsNotice = ref('');
+const commentNotice = ref('');
+
+const flashFrom = (page, fallback) => page?.props?.flash?.success || fallback;
+const errorFrom = (errors) => errors?.throttle || Object.values(errors || {})[0] || 'Aksi gagal. Coba lagi.';
 
 const escapeHtml = (value) => {
     return value
@@ -68,23 +81,44 @@ const renderedArticleContent = computed(() => {
     return escapeHtml(rawContent).replace(/\n/g, '<br>');
 });
 
-const formatDate = (value) => {
-    if (!value) return '-';
+// Sumber tulisan berupa teks biasa; tautan di dalamnya dijadikan link tanpa v-html.
+const sourceLines = computed(() =>
+    String(props.article?.writing_source || '')
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((line) =>
+            line
+                .split(/(https?:\/\/\S+)/g)
+                .filter(Boolean)
+                .map((text) => ({ text, url: /^https?:\/\//.test(text) ? text : null })),
+        ),
+);
+
+const formatDateTime = (value) => {
+    if (!value) return '';
+
+    const date = new Date(String(value).replace(' ', 'T'));
 
     return new Intl.DateTimeFormat('id-ID', {
-        day: '2-digit',
+        day: 'numeric',
         month: 'short',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-    }).format(new Date(value));
+    }).format(date);
+};
+
+const hideImage = (event) => {
+    event.target.style.display = 'none';
 };
 
 const submitComment = () => {
     commentForm.post(route('articles.comments.store', props.article.slug), {
         preserveScroll: true,
-        onSuccess: () => {
+        onSuccess: (page) => {
             commentForm.reset('content', 'parent_id');
+            commentNotice.value = flashFrom(page, 'Komentar terkirim.');
         },
     });
 };
@@ -98,28 +132,56 @@ const openReply = (commentId) => {
 const submitReply = () => {
     replyForm.post(route('articles.comments.store', props.article.slug), {
         preserveScroll: true,
-        onSuccess: () => {
+        onSuccess: (page) => {
             replyForm.reset('content', 'parent_id');
             activeReplyId.value = null;
+            commentNotice.value = flashFrom(page, 'Balasan terkirim.');
         },
     });
 };
 
 const deleteComment = (commentId) => {
+    if (!window.confirm('Hapus komentar ini?')) {
+        return;
+    }
+
     commentForm.delete(route('articles.comments.destroy', [props.article.slug, commentId]), {
         preserveScroll: true,
+        onSuccess: (page) => {
+            commentNotice.value = flashFrom(page, 'Komentar dihapus.');
+        },
     });
 };
 
 const reportArticle = () => {
+    if (!window.confirm('Laporkan artikel ini ke redaksi?')) {
+        return;
+    }
+
     reportArticleForm.post(route('articles.reports.store', props.article.slug), {
         preserveScroll: true,
+        onSuccess: (page) => {
+            toolsNotice.value = flashFrom(page, 'Laporan terkirim.');
+        },
+        onError: (errors) => {
+            toolsNotice.value = errorFrom(errors);
+        },
     });
 };
 
 const reportComment = (commentId) => {
+    if (!window.confirm('Laporkan komentar ini ke redaksi?')) {
+        return;
+    }
+
     reportCommentForm.post(route('articles.comments.reports.store', [props.article.slug, commentId]), {
         preserveScroll: true,
+        onSuccess: (page) => {
+            commentNotice.value = flashFrom(page, 'Laporan terkirim.');
+        },
+        onError: (errors) => {
+            commentNotice.value = errorFrom(errors);
+        },
     });
 };
 
@@ -127,32 +189,45 @@ const react = (type) => {
     reactionForm.type = type;
     reactionForm.post(route('articles.reactions.store', props.article.slug), {
         preserveScroll: true,
+        onSuccess: (page) => {
+            toolsNotice.value = flashFrom(page, 'Reaksi disimpan.');
+        },
+        onError: (errors) => {
+            toolsNotice.value = errorFrom(errors);
+        },
     });
 };
 
 const clearReaction = () => {
     reactionForm.delete(route('articles.reactions.destroy', props.article.slug), {
         preserveScroll: true,
+        onSuccess: (page) => {
+            toolsNotice.value = flashFrom(page, 'Reaksi dihapus.');
+        },
     });
 };
 
+const toggleReaction = (type) => {
+    if (props.viewer?.reaction === type) {
+        clearReaction();
+        return;
+    }
+
+    react(type);
+};
+
+// Endpoint share mengembalikan JSON (bukan halaman Inertia) dan terbuka untuk tamu,
+// jadi dipanggil lewat axios. Kegagalan mencatat tidak perlu mengganggu pembaca.
 const recordShare = (channel = 'web') => {
-    shareForm.channel = channel;
-    shareForm.post(route('articles.shares.store', props.article.slug), {
-        preserveScroll: true,
-        onSuccess: (page) => {
-            localShareCount.value = Number(page.props.article?.share_count || localShareCount.value + 1);
-        },
-        onError: () => {
-            localShareCount.value += 1;
-        },
-    });
+    window.axios.post(route('articles.shares.store', props.article.slug), { channel }).catch(() => {});
 };
 
 const shareArticle = async () => {
-    if (props.article.is_preview) {
+    if (props.article.is_preview || isSharing.value) {
         return;
     }
+
+    isSharing.value = true;
 
     const shareUrl = window.location.href;
     const sharePayload = {
@@ -165,20 +240,22 @@ const shareArticle = async () => {
         if (navigator.share) {
             await navigator.share(sharePayload);
             recordShare('native');
-            shareFeedback.value = 'Artikel dibagikan.';
+            toolsNotice.value = 'Artikel dibagikan.';
             return;
         }
 
         await navigator.clipboard.writeText(shareUrl);
         recordShare('copy_link');
-        shareFeedback.value = 'Tautan disalin.';
+        toolsNotice.value = 'Tautan artikel disalin.';
     } catch (error) {
         if (error?.name === 'AbortError') {
             return;
         }
 
         recordShare('attempt');
-        shareFeedback.value = 'Tautan siap dibagikan.';
+        toolsNotice.value = 'Tautan siap dibagikan.';
+    } finally {
+        isSharing.value = false;
     }
 };
 
@@ -210,12 +287,11 @@ const requestRevision = () => {
 </script>
 
 <template>
-    <Head :title="article.title" />
+    <Head :title="meta.title || article.title" />
 
-    <div class="min-h-screen bg-[#f8fafc] text-zinc-900">
-        <PublicHeader v-if="!article.is_preview" />
-        <div class="mx-auto grid w-full max-w-screen-2xl gap-10 px-4 py-8 sm:px-6 lg:px-8">
-            <div v-if="article.is_preview" class="mb-5 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+    <PublicLayout :chrome="!article.is_preview">
+        <div v-if="article.is_preview" class="preview-bar">
+            <div class="wrap">
                 <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p class="text-xs font-semibold uppercase tracking-wide text-amber-700">Preview editorial</p>
@@ -281,305 +357,191 @@ const requestRevision = () => {
                     </div>
                 </div>
             </div>
-
-            <Link
-                v-if="!article.is_preview"
-                :href="route('articles.index')"
-                class="text-sm font-semibold text-zinc-500 hover:text-[#1BD6FF]"
-            >
-                &lt;- Kembali ke artikel
-            </Link>
-
-            <div class="mt-5 grid gap-10 lg:grid-cols-12">
-                <article class="lg:col-span-9">
-                    <div class="border-b border-zinc-200 pb-6">
-                        <div class="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-zinc-500">
-                            <span class="text-[#1BD6FF]">{{ article.category?.name ?? 'Umum' }}</span>
-                            <span v-for="tag in article.tags || []" :key="tag.id">#{{ tag.name }}</span>
-                        </div>
-
-                        <h1 class="mt-4 font-serif text-4xl font-bold leading-[1.05] tracking-tight text-zinc-950 sm:text-5xl">{{ article.title }}</h1>
-
-                        <p v-if="article.excerpt" class="mt-5 text-xl leading-8 text-zinc-600">
-                            {{ article.excerpt }}
-                        </p>
-
-                        <div class="mt-5 flex flex-wrap items-center gap-3 text-sm text-zinc-500">
-                            <span>{{ article.author?.name || 'Redaksi' }}</span>
-                            <span>|</span>
-                            <span>{{ article.is_preview ? `${article.status} / ${article.editorial_status}` : formatDate(article.published_at) }}</span>
-                            <span>|</span>
-                            <span>{{ article.view_count || 0 }} views</span>
-                            <span>|</span>
-                            <span>{{ article.comment_count || 0 }} komentar</span>
-                            <span>|</span>
-                            <span>{{ localShareCount }} share</span>
-                        </div>
-                    </div>
-
-                    <img
-                        v-if="article.thumbnail_url"
-                        :src="article.thumbnail_url"
-                        :alt="article.thumbnail_alt || article.title"
-                        class="mt-6 h-auto w-full object-cover"
-                    />
-
-                    <div class="article-content prose prose-zinc mt-8 max-w-none leading-relaxed text-zinc-800" v-html="renderedArticleContent"></div>
-                </article>
-
-                <aside class="space-y-6 lg:col-span-3">
-                    <section class="border-t-4 border-[#1BD6FF] bg-zinc-50 p-5">
-                        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">Penulis</p>
-                        <div class="mt-2">
-                            <Link
-                                v-if="article.author?.profile_slug"
-                                :href="route('authors.show', article.author.profile_slug)"
-                                class="font-serif text-2xl font-semibold text-zinc-950 hover:text-[#1BD6FF]"
-                            >
-                                {{ article.author.name }}
-                            </Link>
-                            <p v-else class="font-serif text-2xl font-semibold text-zinc-950">{{ article.author?.name || 'Redaksi' }}</p>
-                        </div>
-                        <p class="mt-3 text-sm text-zinc-600">
-                            Baca profil penulis untuk melihat artikel lainnya dan ikuti pembaruan terbaru.
-                        </p>
-                    </section>
-
-                    <section class="border-t border-zinc-200 pt-5">
-                        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">Ringkasan</p>
-                        <p class="mt-2 text-sm leading-relaxed text-zinc-600">
-                            {{ article.excerpt || 'Ringkasan belum tersedia untuk artikel ini.' }}
-                        </p>
-                    </section>
-
-                    <section v-if="!article.is_preview" class="border-t border-zinc-200 pt-5">
-                        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500">Aksi</p>
-                        <div class="mt-3 flex flex-wrap gap-2">
-                            <template v-if="viewer.is_authenticated">
-                                <button
-                                    @click="react('like')"
-                                    class="inline-flex items-center gap-1.5 border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#1BD6FF]"
-                                >
-                                    <i class="fa-solid fa-thumbs-up text-[11px]"></i>
-                                    Like ({{ article.reactions?.like || 0 }})
-                                </button>
-                                <button
-                                    @click="react('love')"
-                                    class="inline-flex items-center gap-1.5 border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#1BD6FF]"
-                                >
-                                    <i class="fa-solid fa-heart text-[11px]"></i>
-                                    Love ({{ article.reactions?.love || 0 }})
-                                </button>
-                                <button
-                                    @click="react('insightful')"
-                                    class="inline-flex items-center gap-1.5 border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#1BD6FF]"
-                                >
-                                    <i class="fa-solid fa-lightbulb text-[11px]"></i>
-                                    Insightful ({{ article.reactions?.insightful || 0 }})
-                                </button>
-                                <button
-                                    @click="react('celebrate')"
-                                    class="inline-flex items-center gap-1.5 border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#1BD6FF]"
-                                >
-                                    <i class="fa-solid fa-champagne-glasses text-[11px]"></i>
-                                    Celebrate ({{ article.reactions?.celebrate || 0 }})
-                                </button>
-                                <button
-                                    v-if="viewer.reaction"
-                                    @click="clearReaction"
-                                    class="inline-flex items-center gap-1.5 rounded-md border border-rose-300 px-3 py-1.5 text-xs font-medium text-rose-700 hover:bg-rose-50"
-                                >
-                                    <i class="fa-solid fa-trash text-[11px]"></i>
-                                    Hapus Reaksi
-                                </button>
-                            </template>
-                            <button
-                                v-if="viewer.is_authenticated && article.can_report"
-                                @click="reportArticle"
-                                class="inline-flex items-center gap-1.5 border border-[#1BD6FF] px-3 py-1.5 text-xs font-medium text-[#1BD6FF] hover:bg-cyan-50"
-                            >
-                                <i class="fa-solid fa-flag text-[11px]"></i>
-                                Laporkan Artikel
-                            </button>
-                            <button
-                                type="button"
-                                @click="shareArticle"
-                                :disabled="shareForm.processing"
-                                class="inline-flex items-center gap-1.5 border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#1BD6FF] disabled:opacity-50"
-                            >
-                                <i class="fa-solid fa-share-nodes text-[11px]"></i>
-                                Share ({{ localShareCount }})
-                            </button>
-                            <Link
-                                :href="route('articles.index')"
-                                class="inline-flex items-center gap-1.5 border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:border-[#1BD6FF] hover:text-[#1BD6FF]"
-                            >
-                                <i class="fa-solid fa-newspaper text-[11px]"></i>
-                                Artikel Lainnya
-                            </Link>
-                        </div>
-                        <p v-if="shareFeedback" class="mt-2 text-xs text-zinc-500">{{ shareFeedback }}</p>
-                    </section>
-                </aside>
-            </div>
-
-            <section v-if="!article.is_preview" class="mt-12 border-t border-zinc-200 pt-8">
-                <h2 class="font-serif text-3xl font-semibold text-zinc-950">Komentar</h2>
-
-                <form v-if="viewer.is_authenticated" @submit.prevent="submitComment" class="mt-4 space-y-3">
-                    <textarea
-                        v-model="commentForm.content"
-                        rows="3"
-                        placeholder="Tulis komentar..."
-                        class="w-full border-zinc-300 text-sm focus:border-[#1BD6FF] focus:ring-[#1BD6FF]"
-                    />
-                    <button
-                        type="submit"
-                        :disabled="commentForm.processing"
-                        class="bg-zinc-950 px-4 py-2 text-sm font-semibold text-white hover:bg-[#1BD6FF] disabled:opacity-50"
-                    >
-                        Kirim Komentar
-                    </button>
-                </form>
-                <p v-else class="mt-4 text-sm text-zinc-600">Login untuk menulis komentar.</p>
-
-                <div class="mt-6 space-y-4">
-                    <article
-                        v-for="comment in comments"
-                        :key="comment.id"
-                        class="border-b border-zinc-200 py-4"
-                    >
-                        <div class="flex items-start justify-between gap-4">
-                            <div>
-                                <p class="text-sm font-semibold text-zinc-900">{{ comment.author?.name }}</p>
-                                <p class="mt-1 text-xs text-zinc-500">{{ formatDate(comment.created_at) }}</p>
-                                <p class="mt-2 text-sm leading-relaxed text-zinc-700">{{ comment.content }}</p>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <button
-                                    v-if="comment.can_reply"
-                                    @click="openReply(comment.id)"
-                                    class="text-xs font-medium text-zinc-700 hover:text-[#1BD6FF]"
-                                >
-                                    Balas
-                                </button>
-                                <button
-                                    v-if="comment.can_report"
-                                    @click="reportComment(comment.id)"
-                                    class="text-xs font-medium text-[#1BD6FF]"
-                                >
-                                    Laporkan
-                                </button>
-                                <button
-                                    v-if="comment.can_delete"
-                                    @click="deleteComment(comment.id)"
-                                    class="text-xs font-medium text-rose-600"
-                                >
-                                    Hapus
-                                </button>
-                            </div>
-                        </div>
-
-                        <form
-                            v-if="activeReplyId === comment.id"
-                            @submit.prevent="submitReply"
-                            class="mt-3 space-y-2"
-                        >
-                            <textarea
-                                v-model="replyForm.content"
-                                rows="2"
-                                placeholder="Tulis balasan..."
-                                class="w-full border-zinc-300 text-sm focus:border-[#1BD6FF] focus:ring-[#1BD6FF]"
-                            />
-                            <button
-                                type="submit"
-                                :disabled="replyForm.processing"
-                                class="bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white hover:bg-[#1BD6FF]"
-                            >
-                                Kirim Balasan
-                            </button>
-                        </form>
-
-                        <div v-if="comment.replies?.length" class="mt-3 space-y-2 border-l border-zinc-200 pl-4">
-                            <div v-for="reply in comment.replies" :key="reply.id" class="rounded-lg bg-white p-3 ring-1 ring-zinc-200">
-                                <div class="flex items-start justify-between gap-4">
-                                    <div>
-                                        <p class="text-xs font-semibold text-zinc-800">{{ reply.author?.name }}</p>
-                                        <p class="mt-1 text-xs text-zinc-500">{{ formatDate(reply.created_at) }}</p>
-                                        <p class="mt-1 text-sm text-zinc-700">{{ reply.content }}</p>
-                                    </div>
-                                    <div class="flex items-center gap-3">
-                                        <button
-                                            v-if="reply.can_report"
-                                            @click="reportComment(reply.id)"
-                                            class="text-xs font-medium text-[#c9532f] hover:text-[#FF7950]"
-                                        >
-                                            Laporkan
-                                        </button>
-                                        <button
-                                            v-if="reply.can_delete"
-                                            @click="deleteComment(reply.id)"
-                                            class="text-xs font-medium text-rose-600"
-                                        >
-                                            Hapus
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </article>
-                    <p v-if="comments.length === 0" class="text-sm text-zinc-500">Belum ada komentar.</p>
-                </div>
-            </section>
         </div>
 
-        <PublicFooter v-if="!article.is_preview" />
-    </div>
+        <article>
+            <header class="article-head">
+                <div class="wrap narrow">
+                    <p class="eyebrow">
+                        <template v-if="article.category">
+                            <Link
+                                v-if="!article.is_preview"
+                                :href="route('articles.index', { category: article.category.slug })"
+                                style="color: inherit"
+                            >
+                                {{ article.category.name }}
+                            </Link>
+                            <span v-else>{{ article.category.name }}</span>
+                        </template>
+                        <template v-if="article.category && article.tags?.length"> · </template>
+                        <template v-if="article.tags?.length">{{ article.tags[0].name }}</template>
+                    </p>
+                    <h1>{{ article.title }}</h1>
+                    <p v-if="article.excerpt" class="dek">{{ article.excerpt }}</p>
+                    <div class="article-by">
+                        <span>
+                            Oleh
+                            <Link
+                                v-if="article.author?.profile_slug && !article.is_preview"
+                                :href="route('authors.show', article.author.profile_slug)"
+                            >
+                                <strong>{{ article.author.name }}</strong>
+                            </Link>
+                            <strong v-else>{{ article.author?.name || 'Redaksi Expertia' }}</strong>
+                        </span>
+                        <span v-if="article.is_preview">{{ article.status }} / {{ article.editorial_status }}</span>
+                        <span v-else>{{ formatDate(article.published_at) }}</span>
+                        <span>Bacaan {{ readingMinutes(article.content) }} menit</span>
+                    </div>
+                </div>
+            </header>
+
+            <figure v-if="article.thumbnail_url" class="article-cover wrap" style="max-width: 1000px">
+                <div class="cover">
+                    <img :src="article.thumbnail_url" :alt="article.thumbnail_alt || ''" @error="hideImage" />
+                </div>
+                <figcaption v-if="article.thumbnail_source">{{ article.thumbnail_source }}</figcaption>
+            </figure>
+
+            <div class="article-body wrap narrow">
+                <div class="prose">
+                    <div class="article-content" v-html="renderedArticleContent"></div>
+
+                    <aside v-if="sourceLines.length" class="source-box">
+                        <h2>Sumber tulisan</h2>
+                        <p v-for="(line, index) in sourceLines" :key="index">
+                            <template v-for="(part, partIndex) in line" :key="partIndex">
+                                <a v-if="part.url" :href="part.url" target="_blank" rel="noopener nofollow">{{ part.text }}</a>
+                                <template v-else>{{ part.text }}</template>
+                            </template>
+                        </p>
+                    </aside>
+
+                    <div v-if="!article.is_preview" class="article-tools">
+                        <button type="button" class="chip" :disabled="isSharing" @click="shareArticle">
+                            <i class="fa-solid fa-share-nodes" aria-hidden="true"></i>
+                            Bagikan
+                        </button>
+                        <template v-if="viewer.is_authenticated">
+                            <button
+                                v-for="reaction in reactionTypes"
+                                :key="reaction.type"
+                                type="button"
+                                class="chip"
+                                :class="{ 'is-active': viewer.reaction === reaction.type }"
+                                :aria-pressed="viewer.reaction === reaction.type"
+                                :disabled="reactionForm.processing"
+                                @click="toggleReaction(reaction.type)"
+                            >
+                                <i :class="reaction.icon" aria-hidden="true"></i>
+                                {{ reaction.label }}
+                                <span v-if="article.reactions?.[reaction.type]">{{ article.reactions[reaction.type] }}</span>
+                            </button>
+                        </template>
+                        <button
+                            v-if="viewer.is_authenticated && article.can_report"
+                            type="button"
+                            class="text-btn"
+                            style="margin-left: auto"
+                            @click="reportArticle"
+                        >
+                            Laporkan artikel
+                        </button>
+                        <p v-if="toolsNotice" class="muted" role="status" style="flex-basis: 100%; margin: 4px 0 0">{{ toolsNotice }}</p>
+                    </div>
+
+                    <aside class="end-cta">
+                        <p>
+                            <strong>Anda juga meneliti atau berkarya di bidang ini?</strong>
+                            Kirimkan materi Anda, dan tim editor kami membantu mengolahnya menjadi tulisan populer. Gratis untuk
+                            kontributor perdana yang lolos kurasi.
+                        </p>
+                        <a class="btn btn-navy" :href="contact.registrationUrl" target="_blank" rel="noopener">Daftar sebagai kontributor</a>
+                    </aside>
+                </div>
+            </div>
+        </article>
+
+        <section v-if="!article.is_preview" class="comments" aria-labelledby="komentar-h">
+            <div class="wrap narrow">
+                <hr class="rule" style="margin-bottom: 40px" />
+                <h2 id="komentar-h" class="h2">Komentar</h2>
+
+                <form v-if="viewer.is_authenticated" class="comment-form" @submit.prevent="submitComment">
+                    <label class="sr-only" for="comment-content">Tulis komentar</label>
+                    <textarea
+                        id="comment-content"
+                        v-model="commentForm.content"
+                        class="field"
+                        rows="4"
+                        maxlength="2000"
+                        placeholder="Tulis tanggapan Anda…"
+                    ></textarea>
+                    <p v-if="commentForm.errors.content" class="field-error">{{ commentForm.errors.content }}</p>
+                    <button type="submit" class="btn btn-navy" :disabled="commentForm.processing || !commentForm.content.trim()">
+                        Kirim komentar
+                    </button>
+                </form>
+                <p v-else class="muted" style="margin: 0 0 28px">
+                    <Link :href="route('login')">Masuk</Link> untuk ikut berdiskusi.
+                </p>
+
+                <p v-if="commentNotice" class="muted" role="status" style="margin: -12px 0 24px">{{ commentNotice }}</p>
+
+                <article v-for="comment in comments" :key="comment.id" class="comment">
+                    <div class="comment-head">
+                        <strong>{{ comment.author?.name }}</strong>
+                        <time :datetime="comment.created_at">{{ formatDateTime(comment.created_at) }}</time>
+                    </div>
+                    <p class="comment-body">{{ comment.content }}</p>
+                    <div v-if="comment.can_reply || comment.can_report || comment.can_delete" class="comment-actions">
+                        <button v-if="comment.can_reply" type="button" class="text-btn" @click="openReply(comment.id)">Balas</button>
+                        <button v-if="comment.can_report" type="button" class="text-btn" @click="reportComment(comment.id)">Laporkan</button>
+                        <button v-if="comment.can_delete" type="button" class="text-btn danger" @click="deleteComment(comment.id)">Hapus</button>
+                    </div>
+
+                    <form
+                        v-if="activeReplyId === comment.id"
+                        class="comment-form"
+                        style="margin: 14px 0 0"
+                        @submit.prevent="submitReply"
+                    >
+                        <label class="sr-only" :for="`reply-${comment.id}`">Tulis balasan</label>
+                        <textarea
+                            :id="`reply-${comment.id}`"
+                            v-model="replyForm.content"
+                            class="field"
+                            rows="3"
+                            maxlength="2000"
+                            placeholder="Tulis balasan…"
+                        ></textarea>
+                        <p v-if="replyForm.errors.content" class="field-error">{{ replyForm.errors.content }}</p>
+                        <div style="display: flex; gap: 16px; align-items: center">
+                            <button type="submit" class="btn btn-navy" :disabled="replyForm.processing || !replyForm.content.trim()">
+                                Kirim balasan
+                            </button>
+                            <button type="button" class="text-btn" @click="activeReplyId = null">Batal</button>
+                        </div>
+                    </form>
+
+                    <div v-if="comment.replies?.length" class="replies">
+                        <article v-for="reply in comment.replies" :key="reply.id" class="comment">
+                            <div class="comment-head">
+                                <strong>{{ reply.author?.name }}</strong>
+                                <time :datetime="reply.created_at">{{ formatDateTime(reply.created_at) }}</time>
+                            </div>
+                            <p class="comment-body">{{ reply.content }}</p>
+                            <div v-if="reply.can_report || reply.can_delete" class="comment-actions">
+                                <button v-if="reply.can_report" type="button" class="text-btn" @click="reportComment(reply.id)">Laporkan</button>
+                                <button v-if="reply.can_delete" type="button" class="text-btn danger" @click="deleteComment(reply.id)">Hapus</button>
+                            </div>
+                        </article>
+                    </div>
+                </article>
+
+                <p v-if="comments.length === 0" class="muted">Belum ada komentar.</p>
+            </div>
+        </section>
+        <div v-else style="height: 56px"></div>
+    </PublicLayout>
 </template>
-
-<style scoped>
-:deep(.article-content ul) {
-    list-style-type: disc;
-    padding-left: 1.3rem;
-}
-
-:deep(.article-content ol) {
-    list-style-type: decimal;
-    padding-left: 1.3rem;
-}
-
-:deep(.article-content li::marker) {
-    color: #3f3f46;
-}
-
-:deep(.article-content strong) {
-    font-weight: 700;
-    color: #18181b;
-}
-
-:deep(.article-content em) {
-    font-style: italic;
-}
-
-:deep(.article-content p) {
-    margin: 0.75rem 0;
-}
-
-:deep(.article-content h2) {
-    margin-top: 1.5rem;
-    margin-bottom: 0.75rem;
-    font-size: 1.75rem;
-    line-height: 1.25;
-    font-weight: 700;
-    color: #18181b;
-}
-
-:deep(.article-content h3) {
-    margin-top: 1.25rem;
-    margin-bottom: 0.6rem;
-    font-size: 1.35rem;
-    line-height: 1.3;
-    font-weight: 700;
-    color: #27272a;
-}
-</style>

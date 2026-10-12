@@ -1,16 +1,14 @@
 <script setup>
-import PublicFooter from '@/Components/PublicFooter.vue';
-import PublicHeader from '@/Components/PublicHeader.vue';
+import PublicLayout from '@/Layouts/PublicLayout.vue';
+import { articleKicker, contact, formatDate, rubrics } from '@/site';
 import { Head, Link } from '@inertiajs/vue3';
 
-const props = defineProps({
-    canLogin: {
-        type: Boolean,
-    },
-    canRegister: {
-        type: Boolean,
-    },
+defineProps({
     featured: {
+        type: Object,
+        default: null,
+    },
+    secondary: {
         type: Object,
         default: null,
     },
@@ -18,244 +16,222 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
-    opinion: {
-        type: Array,
-        default: () => [],
+    rubricCounts: {
+        type: [Object, Array],
+        default: () => ({}),
     },
-    popularCategories: {
-        type: Array,
-        default: () => [],
+    meta: {
+        type: Object,
+        default: () => ({}),
     },
 });
 
-const formatDate = (value) => {
-    if (!value) {
-        return '-';
-    }
-
-    return new Intl.DateTimeFormat('id-ID', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-    }).format(new Date(value));
+const hideImage = (event) => {
+    event.target.style.display = 'none';
 };
-
-const topStories = props.latest.slice(0, 4);
-const compactStories = props.latest.slice(0, 6);
-const featureGrid = props.latest.slice(0, 6);
 </script>
 
 <template>
-    <Head title="Expertia | Perspektif dan Analisis" />
+    <Head :title="meta.title || 'Expertia.id — Media Kepakaran Indonesia'" />
 
-    <div class="min-h-screen bg-[#f8fafc] text-zinc-900">
-        <PublicHeader :can-login="canLogin" :can-register="canRegister" />
-
-        <main class="mx-auto grid w-full max-w-screen-2xl gap-10 px-4 py-8 sm:px-6 lg:px-8">
-            <section class="border-b border-zinc-200 pb-8">
-                <article>
-                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#E80EB5]">Headline</p>
-                    <template v-if="featured">
-                        <Link :href="route('articles.show', featured.slug)" class="group mt-4 block overflow-hidden rounded-xl">
-                            <div v-if="featured.thumbnail_url" class="relative">
-                                <img
-                                    :src="featured.thumbnail_url"
-                                    :alt="featured.thumbnail_alt || featured.title"
-                                    class="h-[28rem] w-full object-cover sm:h-[34rem]"
-                                />
-                                <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/25 to-transparent"></div>
-                                <div class="absolute inset-x-0 bottom-0 p-6 sm:p-10">
-                                    <h3 class="max-w-5xl font-serif text-3xl font-bold leading-tight text-white transition group-hover:text-[#1BD6FF] sm:text-5xl">
-                                        {{ featured.title }}
-                                    </h3>
-                                    <p class="mt-4 max-w-4xl text-base leading-relaxed text-zinc-100">
-                                        {{ featured.excerpt || 'Baca analisis mendalam dari para penulis kami.' }}
-                                    </p>
-                                    <p class="mt-4 text-sm text-zinc-200">
-                                        {{ featured.author?.name || 'Redaksi' }} | {{ featured.category?.name || 'Umum' }} | {{ formatDate(featured.published_at) }}
-                                    </p>
-                                </div>
-                            </div>
-                            <div v-else class="rounded-xl bg-white p-6 ring-1 ring-zinc-200 sm:p-10">
-                                <h2 class="font-serif text-3xl font-bold leading-tight text-zinc-900 transition group-hover:text-[#E80EB5] sm:text-5xl">
-                                    {{ featured.title }}
-                                </h2>
-                                <p class="mt-4 max-w-4xl text-base leading-relaxed text-zinc-600">
-                                    {{ featured.excerpt || 'Baca analisis mendalam dari para penulis kami.' }}
-                                </p>
-                                <p class="mt-4 text-sm text-zinc-500">
-                                    {{ featured.author?.name || 'Redaksi' }} | {{ featured.category?.name || 'Umum' }} | {{ formatDate(featured.published_at) }}
-                                </p>
-                            </div>
-                        </Link>
-                    </template>
-                    <template v-else>
-                        <div class="mt-4 rounded-xl bg-white p-8 ring-1 ring-zinc-200 sm:p-10">
-                            <h2 class="font-serif text-3xl font-bold leading-tight text-zinc-900 sm:text-5xl">
-                                Perspektif kritis untuk pembaca Indonesia
-                            </h2>
-                            <p class="mt-4 max-w-3xl text-base leading-relaxed text-zinc-600">
-                                Konten unggulan akan tampil di sini setelah artikel pertama dipublikasikan.
-                            </p>
-                        </div>
-                    </template>
-                </article>
-            </section>
-
-            <section>
-                <h2 class="border-b border-zinc-200 pb-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#FF7950]">Sorotan Hari Ini</h2>
-                <div class="mt-4 space-y-4">
-                    <article
-                        v-for="story in topStories"
-                        :key="story.id"
-                        class="grid items-start gap-4 border-b border-zinc-100 pb-4 sm:grid-cols-12"
-                    >
-                        <div class="sm:col-span-3">
-                            <img
-                                v-if="story.thumbnail_url"
-                                :src="story.thumbnail_url"
-                                :alt="story.thumbnail_alt || story.title"
-                                class="h-28 w-full rounded-lg object-cover sm:h-24"
-                            />
-                        </div>
-                        <div :class="story.thumbnail_url ? 'sm:col-span-9' : 'sm:col-span-12'">
-                            <Link :href="route('articles.show', story.slug)" class="font-serif text-2xl font-semibold leading-tight text-zinc-900 hover:text-[#FF7950]">
-                                {{ story.title }}
-                            </Link>
-                            <p class="mt-2 text-sm text-zinc-500">
-                                {{ story.author?.name || 'Redaksi' }} | {{ story.category?.name || 'Umum' }} | {{ formatDate(story.published_at) }}
-                            </p>
-                        </div>
-                    </article>
-                    <p v-if="topStories.length === 0" class="text-sm text-zinc-500">Belum ada artikel sorotan.</p>
-                </div>
-            </section>
-
-            <section class="grid gap-8 lg:grid-cols-3">
-                <div class="lg:col-span-2">
-                    <div class="flex items-center justify-between border-b border-zinc-200 pb-2">
-                        <h2 class="text-sm font-semibold uppercase tracking-[0.2em] text-[#1BD6FF]">Artikel Terbaru</h2>
-                        <Link :href="route('articles.index')" class="text-xs font-semibold uppercase tracking-[0.12em] text-[#0f5f74] hover:text-[#1BD6FF]">
-                            <span class="inline-flex items-center gap-2">
-                                <i class="fa-solid fa-newspaper text-[11px]"></i>
-                                Lihat Semua
-                            </span>
-                        </Link>
-                    </div>
-                    <div class="mt-4 divide-y divide-zinc-100">
-                        <article v-for="story in compactStories" :key="story.id" class="grid gap-2 py-4 sm:grid-cols-4 sm:gap-6">
-                            <div class="text-xs uppercase tracking-[0.08em] text-zinc-500">{{ story.category?.name || 'Umum' }}</div>
-                            <div class="sm:col-span-3 sm:grid sm:grid-cols-3 sm:gap-4">
-                                <img
-                                    v-if="story.thumbnail_url"
-                                    :src="story.thumbnail_url"
-                                    :alt="story.thumbnail_alt || story.title"
-                                    class="mb-2 h-24 w-full rounded-lg object-cover sm:mb-0 sm:h-28"
-                                />
-                                <div :class="story.thumbnail_url ? 'sm:col-span-2' : 'sm:col-span-3'">
-                                    <Link :href="route('articles.show', story.slug)" class="font-serif text-2xl font-semibold leading-tight text-zinc-900 hover:text-[#1BD6FF]">
-                                        {{ story.title }}
-                                    </Link>
-                                    <p class="mt-1 text-sm text-zinc-600">{{ story.excerpt || 'Analisis lengkap tersedia pada artikel ini.' }}</p>
-                                    <p class="mt-2 text-xs text-zinc-500">{{ story.author?.name || 'Redaksi' }} | {{ formatDate(story.published_at) }}</p>
-                                </div>
-                            </div>
-                        </article>
-                        <p v-if="compactStories.length === 0" class="py-4 text-sm text-zinc-500">Artikel terbaru akan muncul setelah ada publikasi baru.</p>
+    <PublicLayout>
+        <section class="section hero">
+            <div class="wrap">
+                <div class="hero-main">
+                    <p class="eyebrow">Media Kepakaran Indonesia</p>
+                    <h1>Pengetahuan yang Layak Dikenal Lebih Luas.</h1>
+                    <p class="sub">
+                        Menghadirkan riset, paten, inovasi, dan perspektif para pakar untuk membantu masyarakat, industri,
+                        serta pengambil keputusan memahami persoalan secara lebih mendalam.
+                    </p>
+                    <div class="actions">
+                        <Link class="btn btn-navy" :href="route('articles.index')">Jelajahi Artikel</Link>
+                        <Link class="btn btn-line" :href="route('kontributor')">Jadi Kontributor</Link>
                     </div>
                 </div>
-
-                <div class="space-y-8">
-                    <section>
-                        <h2 class="border-b border-zinc-200 pb-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#E80EB5]">Opini</h2>
-                        <div class="mt-4 space-y-4">
-                            <article v-for="story in opinion" :key="story.id" class="rounded-md bg-white p-4 ring-1 ring-[#f2c9ea]">
-                                <Link :href="route('articles.show', story.slug)" class="font-serif text-xl font-semibold leading-snug text-zinc-900 hover:text-[#E80EB5]">
-                                    {{ story.title }}
-                                </Link>
-                                <p class="mt-2 text-xs text-zinc-500">{{ story.author?.name || 'Kontributor' }} | {{ formatDate(story.published_at) }}</p>
-                            </article>
-                            <p v-if="opinion.length === 0" class="text-sm text-zinc-500">Belum ada artikel opini.</p>
-                        </div>
-                    </section>
-
-                    <section>
-                        <h2 class="border-b border-zinc-200 pb-2 text-sm font-semibold uppercase tracking-[0.2em] text-[#FF7950]">Kategori Populer</h2>
-                        <div class="mt-4 grid grid-cols-2 gap-3">
-                            <div
-                                v-for="category in popularCategories"
-                                :key="category.id"
-                                class="rounded-md bg-white px-3 py-2 text-sm ring-1 ring-zinc-200"
-                            >
-                                <p class="font-medium text-zinc-900">{{ category.name }}</p>
-                                <p class="text-xs text-zinc-500">{{ category.published_articles_count }} artikel</p>
-                            </div>
-                            <p v-if="popularCategories.length === 0" class="col-span-2 text-sm text-zinc-500">Kategori populer belum tersedia.</p>
-                        </div>
-                    </section>
+                <div class="chain" aria-label="Dari pengetahuan ke dampak">
+                    <div><span>01</span>Pengetahuan</div>
+                    <div><span>02</span>Kepakaran</div>
+                    <div class="last"><span>03</span>Dampak</div>
+                    <p>Dari Kepakaran Menuju Dampak Nyata.</p>
                 </div>
-            </section>
+            </div>
+        </section>
 
-            <section>
-                <div class="flex items-center justify-between border-b border-zinc-200 pb-2">
-                    <h2 class="text-sm font-semibold uppercase tracking-[0.2em] text-[#0f5f74]">Pilihan Redaksi</h2>
-                    <Link :href="route('articles.index')" class="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-600 hover:text-[#0f5f74]">
-                        <span class="inline-flex items-center gap-2">
-                            <i class="fa-solid fa-layer-group text-[11px]"></i>
-                            Lihat Semua Topik
-                        </span>
-                    </Link>
-                </div>
-                <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <article
-                        v-for="story in featureGrid"
-                        :key="`feature-${story.id}`"
-                        class="rounded-xl bg-white p-5 shadow-sm ring-1 ring-zinc-200 transition hover:-translate-y-0.5 hover:ring-[#b6f0ff]"
-                    >
-                        <img
-                            v-if="story.thumbnail_url"
-                            :src="story.thumbnail_url"
-                            :alt="story.thumbnail_alt || story.title"
-                            class="mb-3 h-40 w-full rounded-lg object-cover"
-                        />
-                        <p class="text-xs uppercase tracking-[0.08em] text-zinc-500">{{ story.category?.name || 'Umum' }}</p>
-                        <Link :href="route('articles.show', story.slug)" class="mt-2 block font-serif text-xl font-semibold leading-snug text-zinc-900 hover:text-[#0f5f74]">
-                            {{ story.title }}
-                        </Link>
-                        <p class="mt-2 line-clamp-3 text-sm text-zinc-600">{{ story.excerpt || 'Baca artikel untuk memahami isu ini lebih mendalam.' }}</p>
-                        <p class="mt-3 text-xs text-zinc-500">{{ story.author?.name || 'Redaksi' }} | {{ formatDate(story.published_at) }}</p>
-                    </article>
-                    <article
-                        v-if="featureGrid.length === 0"
-                        class="rounded-xl bg-white p-5 text-sm text-zinc-500 shadow-sm ring-1 ring-zinc-200 sm:col-span-2 lg:col-span-3"
-                    >
-                        Artikel pilihan redaksi akan tampil otomatis setelah lebih banyak konten dipublikasikan.
-                    </article>
-                </div>
-            </section>
+        <hr class="rule" />
 
-            <section class="rounded-2xl bg-[#0b2530] px-6 py-8 text-white sm:px-8">
-                <div class="grid gap-6 lg:grid-cols-3">
-                    <div class="lg:col-span-2">
-                        <p class="text-xs font-semibold uppercase tracking-[0.2em] text-[#1BD6FF]">Kontribusi</p>
-                        <h2 class="mt-2 font-serif text-3xl font-bold leading-tight">Punya gagasan berbasis riset atau pengalaman lapangan?</h2>
-                        <p class="mt-3 max-w-3xl text-sm leading-relaxed text-zinc-200">
-                            Kirimkan tulisan Anda untuk dibaca publik luas. Tim editor Expertia membantu proses kurasi agar artikel lebih kuat, jelas, dan relevan.
-                        </p>
-                    </div>
-                    <div class="flex items-center lg:justify-end">
+        <section v-if="featured" class="section" aria-labelledby="pilihan-h">
+            <div class="wrap">
+                <div class="section-head">
+                    <h2 id="pilihan-h" class="h2">Artikel Pilihan</h2>
+                    <Link class="link-arrow" :href="route('articles.index')">Lihat semua artikel →</Link>
+                </div>
+                <div class="featured">
+                    <article class="feat-main">
                         <Link
-                            :href="canRegister ? route('register.author') : route('login')"
-                            class="inline-flex items-center gap-2 rounded-md bg-[#FF7950] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#eb6239]"
+                            v-if="featured.thumbnail_url"
+                            :href="route('articles.show', featured.slug)"
+                            tabindex="-1"
+                            aria-hidden="true"
                         >
-                            <i class="fa-solid fa-pen-nib text-xs"></i>
-                            Mulai Menulis
+                            <div class="cover">
+                                <img :src="featured.thumbnail_url" alt="" loading="lazy" @error="hideImage" />
+                            </div>
                         </Link>
+                        <p class="eyebrow card-meta">{{ articleKicker(featured) }}</p>
+                        <h3>
+                            <Link :href="route('articles.show', featured.slug)">{{ featured.title }}</Link>
+                        </h3>
+                        <p v-if="featured.excerpt" class="excerpt">{{ featured.excerpt }}</p>
+                        <p class="byline">
+                            <strong>{{ featured.author?.name || 'Redaksi Expertia' }}</strong> · {{ formatDate(featured.published_at) }}
+                        </p>
+                    </article>
+
+                    <div class="feat-side">
+                        <article v-if="secondary" class="side-card">
+                            <Link
+                                v-if="secondary.thumbnail_url"
+                                :href="route('articles.show', secondary.slug)"
+                                tabindex="-1"
+                                aria-hidden="true"
+                            >
+                                <div class="cover light">
+                                    <img :src="secondary.thumbnail_url" alt="" loading="lazy" @error="hideImage" />
+                                </div>
+                            </Link>
+                            <p class="eyebrow card-meta">{{ articleKicker(secondary) }}</p>
+                            <h3>
+                                <Link :href="route('articles.show', secondary.slug)">{{ secondary.title }}</Link>
+                            </h3>
+                            <p class="byline">
+                                <strong>{{ secondary.author?.name || 'Redaksi Expertia' }}</strong> · {{ formatDate(secondary.published_at) }}
+                            </p>
+                        </article>
+                        <aside class="side-note">
+                            <p>Riset yang baik tidak seharusnya berhenti di jurnal.</p>
+                            <p>Kirimkan karya Anda. Editor kami membantu mengolahnya menjadi tulisan populer.</p>
+                            <Link class="link-arrow" :href="route('kontributor')">Pelajari program kontributor →</Link>
+                        </aside>
                     </div>
                 </div>
-            </section>
-        </main>
+            </div>
+        </section>
 
-        <PublicFooter />
-    </div>
+        <hr v-if="latest.length" class="rule" />
+
+        <section v-if="latest.length" class="section" aria-labelledby="terbaru-h">
+            <div class="wrap">
+                <div class="section-head">
+                    <h2 id="terbaru-h" class="h2">Terbaru</h2>
+                    <Link class="link-arrow" :href="route('articles.index')">Semua artikel →</Link>
+                </div>
+                <div class="latest-grid">
+                    <article v-for="story in latest" :key="story.id" class="side-card">
+                        <Link
+                            v-if="story.thumbnail_url"
+                            :href="route('articles.show', story.slug)"
+                            tabindex="-1"
+                            aria-hidden="true"
+                        >
+                            <div class="cover light">
+                                <img :src="story.thumbnail_url" alt="" loading="lazy" @error="hideImage" />
+                            </div>
+                        </Link>
+                        <p class="eyebrow card-meta">{{ articleKicker(story) }}</p>
+                        <h3>
+                            <Link :href="route('articles.show', story.slug)">{{ story.title }}</Link>
+                        </h3>
+                        <p class="byline">
+                            <strong>{{ story.author?.name || 'Redaksi Expertia' }}</strong> · {{ formatDate(story.published_at) }}
+                        </p>
+                    </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="section on-paper" aria-labelledby="rubrik-h">
+            <div class="wrap">
+                <h2 id="rubrik-h" class="h2">Jelajahi Kepakaran</h2>
+                <p class="lead">Empat rubrik untuk memahami persoalan dari sudut pandang orang yang menekuninya.</p>
+                <div class="rubrics">
+                    <template v-for="rubric in rubrics" :key="rubric.slug">
+                        <Link
+                            v-if="rubricCounts[rubric.slug] > 0"
+                            class="rubric"
+                            :href="route('articles.index', { category: rubric.slug })"
+                        >
+                            <h3>{{ rubric.name }}</h3>
+                            <p>{{ rubric.description }}</p>
+                            <p class="status">{{ rubricCounts[rubric.slug] }} artikel →</p>
+                        </Link>
+                        <div v-else class="rubric">
+                            <h3>{{ rubric.name }}</h3>
+                            <p>{{ rubric.description }}</p>
+                            <p class="status soon">Segera hadir</p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </section>
+
+        <section class="section program" aria-labelledby="program-h">
+            <div class="wrap">
+                <div class="copy">
+                    <p class="eyebrow">Program Kontributor Perdana</p>
+                    <h2 id="program-h">Punya Riset, Paten, atau Kepakaran? Kami Bantu Publikasikan. <em>Gratis.</em></h2>
+                    <p class="body">
+                        Anda tidak perlu menulis dari nol. Kirimkan tautan jurnal, informasi paten, studi kasus, atau kajian Anda.
+                        Tim editor Expertia mengolahnya menjadi artikel populer dan carousel Instagram, lalu meminta persetujuan
+                        Anda sebelum terbit.
+                    </p>
+                    <div class="actions">
+                        <a class="btn btn-ivory" :href="contact.registrationUrl" target="_blank" rel="noopener">Daftar Gratis sebagai Kontributor</a>
+                        <Link class="text" :href="route('kontributor')">Pelajari programnya</Link>
+                    </div>
+                    <p class="fine">
+                        Setiap pendaftaran melalui kurasi editorial. Pertanyaan? WhatsApp
+                        <a :href="contact.whatsappUrl" target="_blank" rel="noopener">{{ contact.whatsappNumber }}</a>
+                        ({{ contact.whatsappName }}).
+                    </p>
+                </div>
+                <ul class="benefits">
+                    <li class="label">Yang Anda terima</li>
+                    <li>Satu artikel populer dari materi sumber Anda</li>
+                    <li>Satu carousel Instagram</li>
+                    <li>Profil dan bidang kepakaran Anda</li>
+                    <li>Terbit di expertia.id dan Instagram {{ contact.instagramHandle }}</li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="section about" aria-labelledby="tentang-h">
+            <div class="wrap">
+                <div class="col">
+                    <h2 id="tentang-h" class="h2">Tentang Expertia</h2>
+                    <p class="lead" style="font-size: 18px; line-height: 1.65; margin-top: 20px">
+                        Pengetahuan memberi dampak lebih besar ketika dapat diakses, dipahami, dan digunakan. Expertia menjembatani
+                        dunia akademik, profesional, industri, dan kebijakan publik melalui publikasi yang kredibel dan relevan.
+                    </p>
+                    <p style="margin-top: 20px">
+                        <Link class="link-arrow" :href="route('kebijakan.editorial')">Baca kebijakan editorial →</Link>
+                    </p>
+                </div>
+                <div class="col principles">
+                    <div>
+                        <h3>Berbasis bukti</h3>
+                        <p>Setiap tulisan bertumpu pada riset, data, atau pengalaman yang dapat ditelusuri.</p>
+                    </div>
+                    <div>
+                        <h3>Kritis pada masalah, konstruktif pada solusi</h3>
+                        <p>Kami tidak berhenti pada kritik, tetapi menimbang jalan keluar.</p>
+                    </div>
+                    <div>
+                        <h3>Independen dalam menilai</h3>
+                        <p>Tidak berpihak pada pemerintah maupun oposisi. Konten kerja sama selalu diberi label.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </PublicLayout>
 </template>

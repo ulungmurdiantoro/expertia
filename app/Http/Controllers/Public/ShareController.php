@@ -11,28 +11,38 @@ use Illuminate\Http\Request;
 
 class ShareController extends Controller
 {
+    /**
+     * Dipanggil lewat fetch dari tombol "Bagikan" (juga oleh pengunjung yang belum masuk).
+     * Satu sesi hanya menambah share_count sekali per artikel agar skor trending
+     * tidak bisa digelembungkan dengan klik berulang.
+     */
     public function store(
         Request $request,
         Article $article,
         EventTrackingService $eventTrackingService,
         ArticleScoringService $articleScoringService
     ): JsonResponse {
-        abort_if($article->status !== 'published', 404);
+        abort_unless($article->isPublished(), 404);
 
         $validated = $request->validate([
             'channel' => ['nullable', 'string', 'max:50'],
         ]);
 
-        $article->increment('share_count');
-        $article->refresh();
+        $sharedArticleIds = $request->session()->get('shared_article_ids', []);
 
-        $eventTrackingService->track($request, 'article.share', $article, [
-            'channel' => $validated['channel'] ?? 'web',
-        ]);
-        $articleScoringService->scoreArticle($article);
+        if (! in_array($article->id, $sharedArticleIds, true)) {
+            $request->session()->put('shared_article_ids', [...$sharedArticleIds, $article->id]);
+
+            $article->increment('share_count');
+
+            $eventTrackingService->track($request, 'article.share', $article, [
+                'channel' => $validated['channel'] ?? 'web',
+            ]);
+            $articleScoringService->scoreArticle($article->fresh());
+        }
 
         return response()->json([
-            'share_count' => $article->share_count,
+            'share_count' => (int) $article->fresh()->share_count,
         ]);
     }
 }

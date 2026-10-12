@@ -45,7 +45,7 @@ class RegisteredUserController extends Controller
     }
 
     /**
-     * Display the author registration view.
+     * Form admin untuk membuat akun kontributor (author) setelah lolos kurasi.
      */
     public function createAuthor(): Response
     {
@@ -59,17 +59,33 @@ class RegisteredUserController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
-        return $this->storeByRole($request, 'user');
+        $user = $this->createUserWithRole($request, 'user');
+
+        event(new Registered($user));
+
+        Auth::login($user);
+
+        return redirect(route('dashboard', absolute: false));
     }
 
     /**
-     * Handle an incoming author registration request.
+     * Admin membuat akun kontributor; admin tetap masuk dengan akunnya sendiri.
      *
      * @throws ValidationException
      */
     public function storeAuthor(Request $request): RedirectResponse
     {
-        return $this->storeByRole($request, 'author');
+        $role = $request->validate([
+            'role' => ['required', Rule::in(['author', 'verified-expert'])],
+        ])['role'];
+
+        $user = $this->createUserWithRole($request, $role);
+
+        event(new Registered($user));
+
+        return redirect()
+            ->route('admin.contributors.create')
+            ->with('success', "Akun kontributor {$user->name} dibuat. Profil publiknya: /authors/{$user->profile_slug}");
     }
 
     /**
@@ -82,27 +98,29 @@ class RegisteredUserController extends Controller
 
         return Inertia::render('Auth/Register', [
             'registrationType' => $registrationType,
-            'submitRoute' => $isAuthorRegistration ? 'register.author.store' : 'register.store',
+            'adminMode' => $isAuthorRegistration,
+            'submitRoute' => $isAuthorRegistration ? 'admin.contributors.store' : 'register.store',
             'title' => $isAuthorRegistration
-                ? 'Daftar Sebagai Author'
+                ? 'Tambah Akun Kontributor'
                 : 'Bergabung dengan expertia',
             'subtitle' => $isAuthorRegistration
-                ? 'Untuk bisa menulis di expertia, Anda harus terdaftar sebagai peneliti atau akademisi pada sebuah universitas atau lembaga riset.'
-                : 'Mulai sebagai user. Anda bisa berlangganan konten premium dan ajukan upgrade menjadi author dari akun Anda.',
-            'switchLabel' => $isAuthorRegistration ? 'Daftar sebagai User' : 'Daftar langsung sebagai Author',
-            'switchRoute' => $isAuthorRegistration ? 'register' : 'register.author',
+                ? 'Buat akun untuk kontributor yang sudah lolos kurasi. Nomor WhatsApp dan email hanya untuk koordinasi redaksi dan tidak tampil di profil publik.'
+                : 'Daftar untuk menyimpan artikel, mengikuti penulis, dan ikut berdiskusi.',
+            'switchLabel' => null,
+            'switchRoute' => null,
             'expertiseOptions' => $expertiseOptions,
         ]);
     }
 
     /**
-     * Store user and assign a public role.
+     * Buat user dan beri role. Role selain 'user' (author, verified-expert) wajib
+     * melengkapi data profil kontributor.
      *
      * @throws ValidationException
      */
-    private function storeByRole(Request $request, string $role): RedirectResponse
+    private function createUserWithRole(Request $request, string $role): User
     {
-        $isAuthor = $role === 'author';
+        $isAuthor = $role !== 'user';
         $expertiseOptions = $isAuthor ? $this->getAuthorExpertiseOptions() : [];
 
         $validated = $request->validate([
@@ -136,11 +154,7 @@ class RegisteredUserController extends Controller
         ]);
         $user->syncRoles([$role]);
 
-        event(new Registered($user));
-
-        Auth::login($user);
-
-        return redirect(route('dashboard', absolute: false));
+        return $user;
     }
 
     /**

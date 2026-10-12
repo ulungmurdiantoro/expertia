@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\Comment;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\SchedulerHeartbeat;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,6 +20,10 @@ class DashboardController extends Controller
     public function index(): Response
     {
         return Inertia::render('Admin/Dashboard', [
+            'scheduler' => [
+                'healthy' => SchedulerHeartbeat::isHealthy(),
+                'last_run_at' => SchedulerHeartbeat::lastBeat()?->toIso8601String(),
+            ],
             'metrics' => [
                 'total_users' => User::count(),
                 'active_authors' => User::role('author')->where('status', 'active')->count(),
@@ -60,7 +65,8 @@ class DashboardController extends Controller
                     'articles',
                     'articles as published_articles_count' => fn ($query) => $query->where('status', 'published'),
                 ])
-                ->having('articles_count', '>', 0)
+                // whereHas, bukan having(): SQLite menolak HAVING tanpa GROUP BY.
+                ->whereHas('articles')
                 ->orderByDesc('published_articles_count')
                 ->limit(6)
                 ->get(['id', 'name', 'email', 'profile_slug'])

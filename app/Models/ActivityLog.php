@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ActivityLog extends Model
 {
-    use HasFactory;
+    use HasFactory, MassPrunable;
 
     public $timestamps = false;
 
@@ -33,5 +35,13 @@ class ActivityLog extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Log audit disimpan dua tahun lalu dihapus oleh model:prune.
+     */
+    public function prunable(): Builder
+    {
+        return static::where('created_at', '<', now()->subDays(730));
     }
 }

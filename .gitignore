@@ -22,3 +22,8 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Database SQLite lokal (berisi data pengguna) dan journal-nya
+/expertia
+/expertia-journal
+*.sqlite-journal

@@ -8,13 +8,12 @@ use App\Http\Requests\UpdateArticleRequest;
 use App\Models\Article;
 use App\Models\ArticleReview;
 use App\Models\Category;
-use App\Models\User;
-use App\Models\UserNotification;
-use App\Services\EventTrackingService;
+use App\Services\ArticleWorkflow;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
@@ -128,9 +127,9 @@ class ArticleController extends Controller
         return redirect()->route('author.articles.edit', $article)->with('success', 'Draft artikel dibuat.');
     }
 
-    public function edit(Article $article): Response
+    public function edit(Request $request, Article $article): Response
     {
-        $this->authorizeOwnership($article);
+        Gate::authorize('view', $article);
 
         $articlePayload = $article->only([
             'id',
@@ -153,6 +152,8 @@ class ArticleController extends Controller
             ?->format('Y-m-d\TH:i');
         $articlePayload['scheduled_timezone'] = config('app.timezone');
         $articlePayload['thumbnail_url'] = $article->thumbnail ? Storage::url($article->thumbnail) : null;
+        $articlePayload['can_update'] = $request->user()->can('update', $article);
+        $articlePayload['can_submit'] = $request->user()->can('submit', $article);
 
         return Inertia::render('Author/Articles/Edit', [
             'article' => $articlePayload,
@@ -162,7 +163,7 @@ class ArticleController extends Controller
 
     public function update(UpdateArticleRequest $request, Article $article): RedirectResponse
     {
-        $this->authorizeOwnership($article);
+        Gate::authorize('update', $article);
 
         $payload = $this->normalizeSchedulePayload($request->validated());
         $thumbnail = $request->file('thumbnail');
@@ -177,7 +178,8 @@ class ArticleController extends Controller
             unset($payload['thumbnail']);
         }
 
-        if (($payload['title'] ?? null) && $payload['title'] !== $article->title) {
+        // URL artikel yang sudah disetujui tidak boleh berubah walau judulnya diedit.
+        if (! $article->hasFrozenSlug() && ($payload['title'] ?? null) && $payload['title'] !== $article->title) {
             $payload['slug'] = $this->makeUniqueSlug($payload['title'], $article->id);
         }
 
@@ -186,43 +188,13 @@ class ArticleController extends Controller
         return back()->with('success', 'Artikel berhasil diperbarui.');
     }
 
-    public function submit(Article $article, EventTrackingService $eventTrackingService): RedirectResponse
+    public function submit(Request $request, Article $article, ArticleWorkflow $workflow): RedirectResponse
     {
-        $this->authorizeOwnership($article);
+        Gate::authorize('view', $article);
 
-        $article->update([
-            'status' => 'in_review',
-            'editorial_status' => 'pending_review',
-            'submitted_at' => now(),
-        ]);
-
-        $reviewers = User::query()
-            ->role(['editor', 'admin', 'super-admin'])
-            ->where('id', '!=', $article->user_id)
-            ->get(['id']);
-
-        foreach ($reviewers as $reviewer) {
-            UserNotification::create([
-                'user_id' => $reviewer->id,
-                'type' => 'article.submitted',
-                'title' => 'Artikel baru menunggu review',
-                'body' => "Artikel '{$article->title}' telah dikirim untuk review.",
-                'data_json' => [
-                    'article_id' => $article->id,
-                    'article_slug' => $article->slug,
-                ],
-            ]);
-        }
-
-        $eventTrackingService->track(request(), 'article.submitted_for_review', $article);
+        $workflow->submit($article, $request);
 
         return back()->with('success', 'Artikel dikirim untuk review editor.');
-    }
-
-    private function authorizeOwnership(Article $article): void
-    {
-        $user = request()->user();
-        abort_unless($article->user_id === $user->id || $user->can('articles.update.any'), 403);
     }
 
     private function makeUniqueSlug(string $title, ?int $ignoreId = null): string

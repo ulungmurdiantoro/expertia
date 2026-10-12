@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\PublicAuthorResource;
 use App\Models\Article;
 use App\Services\ArticleScoringService;
 use App\Services\EventTrackingService;
@@ -49,7 +50,9 @@ class BookmarkController extends Controller
                     'published_at' => optional($bookmark->article?->published_at)?->toDateTimeString(),
                     'view_count' => $bookmark->article?->view_count,
                     'comment_count' => $bookmark->article?->comment_count,
-                    'author' => $bookmark->article?->author,
+                    'author' => $bookmark->article?->author
+                        ? PublicAuthorResource::make($bookmark->article->author)->resolve($request)
+                        : null,
                     'category' => $bookmark->article?->category,
                 ],
             ]);

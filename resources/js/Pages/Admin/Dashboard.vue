@@ -4,6 +4,10 @@ import { Head, Link } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 const props = defineProps({
+    scheduler: {
+        type: Object,
+        default: () => ({ healthy: true, last_run_at: null }),
+    },
     metrics: Object,
     queues: Object,
     articleStatus: Object,
@@ -43,6 +47,16 @@ const objectEntries = (value) => Object.entries(value || {});
 
         <div class="py-8">
             <div class="mx-auto max-w-screen-2xl space-y-5 sm:px-6 lg:px-8">
+                <div v-if="!scheduler.healthy" class="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                    <p class="font-semibold">Scheduler tidak berjalan</p>
+                    <p class="mt-1">
+                        Artikel terjadwal tidak akan tayang otomatis dan log lama tidak dipangkas.
+                        Pasang cron di server: <code class="rounded bg-white px-1">* * * * * cd /path/ke/aplikasi &amp;&amp; php artisan schedule:run</code>.
+                        <span v-if="scheduler.last_run_at">Terakhir berjalan: {{ new Date(scheduler.last_run_at).toLocaleString('id-ID') }}.</span>
+                        <span v-else>Belum pernah tercatat berjalan.</span>
+                    </p>
+                </div>
+
                 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
                     <div
                         v-for="card in metricCards"
