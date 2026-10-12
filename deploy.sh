@@ -299,10 +299,21 @@ else
     ok "APP_ENV=production, APP_DEBUG=false, APP_URL=$(env_get APP_URL)"
 fi
 
-for writable_dir in storage storage/framework/views storage/logs bootstrap/cache public; do
-    [[ -w "$writable_dir" ]] || fail "Folder $writable_dir tidak bisa ditulis oleh user $(whoami). Perbaiki izin, misalnya: sudo chown -R $(whoami):www-data storage bootstrap/cache public && sudo chmod -R ug+rwX storage bootstrap/cache"
-done
-ok "Folder storage, bootstrap/cache, dan public bisa ditulis"
+# git merge, composer, dan npm menulis di seluruh folder aplikasi (termasuk vendor
+# dan node_modules); satu folder milik user lain membuat deploy gagal di tengah
+# maintenance. Isi .git diperiksa terpisah sebelum fetch.
+not_writable_dir="$(find . -path ./.git -prune -o -type d ! -writable -print -quit 2>/dev/null || true)"
+if [[ -n "$not_writable_dir" ]]; then
+    fail "Folder $not_writable_dir tidak bisa ditulis oleh user $(whoami).
+       Atur kepemilikan sekali (pemilik: $(whoami), grup: www-data agar web server tetap bisa menulis storage):
+       sudo chown -R $(whoami):www-data $APP_DIR && sudo chmod -R g+rwX $APP_DIR/storage $APP_DIR/bootstrap/cache"
+fi
+ok "Seluruh folder aplikasi bisa ditulis oleh $(whoami)"
+
+if [[ -f storage/logs/laravel.log && ! -w storage/logs/laravel.log ]]; then
+    warn "storage/logs/laravel.log tidak bisa ditulis oleh $(whoami); perintah artisan yang mencatat log akan gagal."
+    warn "Perbaiki: sudo chown $(whoami):www-data storage/logs/laravel.log && sudo chmod g+w storage/logs/laravel.log"
+fi
 
 resolve_sqlite_path
 sqlite_relative="${SQLITE_PATH#"$APP_DIR"/}"
@@ -331,6 +342,18 @@ ok "Tidak ada perubahan lokal yang bentrok"
 # ---------------------------------------------------------------------------
 
 info "Mengambil perubahan dari origin/$BRANCH"
+
+# Isi .git milik user lain (misalnya bekas `sudo git pull`) membuat fetch gagal
+# dengan "insufficient permission for adding an object". File objek git memang
+# read-only (0444) sejak dibuat; yang perlu bisa ditulis adalah folder-foldernya
+# dan file di level atas .git (FETCH_HEAD, index, config, ...).
+not_writable="$( { find .git -type d ! -writable -print -quit; find .git -maxdepth 1 -type f ! -writable -print -quit; } 2>/dev/null | head -n 1 || true)"
+if [[ -n "$not_writable" ]]; then
+    fail "Sebagian isi .git tidak bisa ditulis oleh user $(whoami) (contoh: $not_writable).
+       Perbaiki sekali dengan: sudo chown -R $(whoami): $APP_DIR/.git
+       lalu jalankan deploy selalu sebagai user $(whoami), tanpa sudo."
+fi
+
 git fetch --prune --quiet origin "$BRANCH"
 
 PREVIOUS_COMMIT="$(git rev-parse HEAD)"
@@ -344,6 +367,17 @@ fi
 
 git merge-base --is-ancestor HEAD "origin/$BRANCH" \
     || fail "Server punya commit yang tidak ada di origin/$BRANCH. Tangani manual (git log origin/$BRANCH..HEAD)."
+
+# File yang tidak ter-track tetapi dibawa commit baru membuat merge menolak berjalan
+# setelah situs masuk maintenance; tangkap sekarang.
+untracked_conflicts="$(comm -12 \
+    <(git ls-files --others --exclude-standard | sort) \
+    <(git ls-tree -r --name-only "origin/$BRANCH" | sort) || true)"
+if [[ -n "$untracked_conflicts" ]]; then
+    printf '%s\n' "$untracked_conflicts" | sed 's/^/      /' >&2
+    fail "File di atas ada di server tanpa tercatat git, dan commit baru membawa file dengan nama yang sama.
+       Pindahkan dulu, misalnya: mkdir -p ~/deploy-backup && mv <file> ~/deploy-backup/"
+fi
 
 printf '    Commit yang akan dipasang:\n'
 git log --format='      %h %s (%an)' "HEAD..origin/$BRANCH" | head -n 30
