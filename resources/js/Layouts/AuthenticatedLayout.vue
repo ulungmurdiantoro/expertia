@@ -155,6 +155,14 @@ const navItems = computed(() => [
                 badge: null,
             },
             {
+                label: 'Kategori',
+                href: route('admin.categories.index'),
+                active: isActive('admin.categories.*'),
+                icon: 'fa-solid fa-folder-tree',
+                visible: can('categories.manage'),
+                badge: null,
+            },
+            {
                 label: 'Tambah Kontributor',
                 href: route('admin.contributors.create'),
                 active: isActive('admin.contributors.*'),

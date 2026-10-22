@@ -29,6 +29,13 @@ return [
     'timezone' => 'Asia/Jakarta',
 
     /*
+    | Kategori yang ditautkan langsung dari menu, footer, dan beranda (rubrics di
+    | resources/js/site.js). Di halaman Kategori, slug-nya dikunci dan kategorinya tidak
+    | bisa dinonaktifkan atau dihapus agar tautan itu tidak rusak.
+    */
+    'menu_rubrics' => ['riset-inovasi', 'perspektif-pakar', 'profil-pakar', 'kebijakan-solusi'],
+
+    /*
     |--------------------------------------------------------------------------
     | Crawler AI
     |--------------------------------------------------------------------------

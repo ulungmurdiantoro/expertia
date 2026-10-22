@@ -49,6 +49,15 @@ class RubricCategoriesTest extends TestCase
         }
     }
 
+    public function test_locked_menu_rubrics_match_the_rubrics_in_site_js(): void
+    {
+        preg_match('/export const rubrics = \[(.*?)\];/s', (string) file_get_contents(resource_path('js/site.js')), $block);
+        preg_match_all("/slug: '([^']+)'/", $block[1] ?? '', $rubrics);
+
+        // Rubrik yang dikunci di halaman Kategori harus sama dengan yang ditautkan beranda.
+        $this->assertEqualsCanonicalizing($rubrics[1], config('expertia.menu_rubrics'));
+    }
+
     public function test_rubric_link_lists_the_articles_of_that_rubric(): void
     {
         Article::factory()->published()->create([

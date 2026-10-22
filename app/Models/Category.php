@@ -26,6 +26,14 @@ class Category extends Model
         ];
     }
 
+    /**
+     * Ditautkan dari menu/beranda (config expertia.menu_rubrics): slug tetap, selalu aktif.
+     */
+    public function isMenuRubric(): bool
+    {
+        return in_array($this->slug, config('expertia.menu_rubrics', []), true);
+    }
+
     public function articles(): HasMany
     {
         return $this->hasMany(Article::class);

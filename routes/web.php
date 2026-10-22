@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AuditLogController as AdminAuditLogController;
+use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\RolePermissionController;
 use App\Http\Controllers\Admin\UserController as AdminUserController;
@@ -119,6 +120,13 @@ Route::middleware(['auth', 'verified', 'role:admin|super-admin'])->prefix('admin
     // Akun kontributor dibuat redaksi setelah kurasi; pendaftaran author publik ditutup.
     Route::get('/contributors/create', [RegisteredUserController::class, 'createAuthor'])->middleware('can:users.assign_role')->name('contributors.create');
     Route::post('/contributors', [RegisteredUserController::class, 'storeAuthor'])->middleware('can:users.assign_role')->name('contributors.store');
+
+    Route::get('/categories', [AdminCategoryController::class, 'index'])->middleware('can:categories.manage')->name('categories.index');
+    Route::get('/categories/create', [AdminCategoryController::class, 'create'])->middleware('can:categories.manage')->name('categories.create');
+    Route::post('/categories', [AdminCategoryController::class, 'store'])->middleware('can:categories.manage')->name('categories.store');
+    Route::get('/categories/{category}/edit', [AdminCategoryController::class, 'edit'])->middleware('can:categories.manage')->name('categories.edit');
+    Route::put('/categories/{category}', [AdminCategoryController::class, 'update'])->middleware('can:categories.manage')->name('categories.update');
+    Route::delete('/categories/{category}', [AdminCategoryController::class, 'destroy'])->middleware('can:categories.manage')->name('categories.destroy');
 
     Route::get('/users', [AdminUserController::class, 'index'])->middleware('can:users.assign_role')->name('users.index');
     Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->middleware('can:users.assign_role')->name('users.edit');
