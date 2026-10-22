@@ -22,7 +22,7 @@ class DiscoveryTest extends TestCase
         parent::setUp();
 
         $author = User::factory()->create(['name' => 'Agung Yulianto', 'profile_slug' => 'agung-yulianto']);
-        $category = Category::factory()->create(['name' => 'Riset & Inovasi', 'slug' => 'riset-inovasi', 'description' => 'Temuan penelitian.']);
+        $category = Category::query()->where('slug', 'riset-inovasi')->firstOrFail();
 
         $this->published = Article::factory()->published()->for($author, 'author')->create([
             'category_id' => $category->id,

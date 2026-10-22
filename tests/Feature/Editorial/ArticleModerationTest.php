@@ -39,7 +39,7 @@ class ArticleModerationTest extends TestCase
         $this->reader = User::factory()->create();
 
         $this->article = Article::factory()->published()->for($this->author, 'author')->create([
-            'category_id' => Category::factory()->create(['slug' => 'riset-inovasi'])->id,
+            'category_id' => Category::query()->where('slug', 'riset-inovasi')->firstOrFail()->id,
             'title' => 'Artikel Terlapor Moderasi',
             'slug' => 'artikel-terlapor-moderasi',
         ]);

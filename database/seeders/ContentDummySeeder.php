@@ -44,23 +44,12 @@ class ContentDummySeeder extends Seeder
             return;
         }
 
-        $categories = collect([
-            ['name' => 'Teknologi', 'slug' => 'teknologi', 'description' => 'Tren teknologi, AI, dan software'],
-            ['name' => 'Sains', 'slug' => 'sains', 'description' => 'Riset dan penemuan ilmiah'],
-            ['name' => 'Opini', 'slug' => 'opini', 'description' => 'Sudut pandang penulis dan pakar'],
-            ['name' => 'Edukasi', 'slug' => 'edukasi', 'description' => 'Materi belajar dan tutorial'],
-        ])->mapWithKeys(function (array $item) {
-            $category = Category::updateOrCreate(
-                ['slug' => $item['slug']],
-                [
-                    'name' => $item['name'],
-                    'description' => $item['description'],
-                    'is_active' => true,
-                ]
-            );
-
-            return [$item['slug'] => $category];
-        });
+        // Rubrik yang dipakai menu dan beranda; dibuat oleh migrasi
+        // 2026_10_23_000002_create_rubric_categories.
+        $categories = Category::query()
+            ->whereIn('slug', ['riset-inovasi', 'perspektif-pakar', 'kebijakan-solusi'])
+            ->get()
+            ->keyBy('slug');
 
         $tags = collect([
             ['name' => 'AI', 'slug' => 'ai'],
@@ -79,7 +68,7 @@ class ContentDummySeeder extends Seeder
 
         $articleA = $this->upsertArticle(
             user: $author,
-            category: $categories['teknologi'],
+            category: $categories['riset-inovasi'],
             title: 'Membangun Pipeline Konten Berbasis AI untuk Media',
             status: 'published',
             editorialStatus: 'approved',
@@ -90,7 +79,7 @@ class ContentDummySeeder extends Seeder
 
         $articleB = $this->upsertArticle(
             user: $expert,
-            category: $categories['sains'],
+            category: $categories['perspektif-pakar'],
             title: 'Etika dan Validitas Riset dalam Era Generative AI',
             status: 'published',
             editorialStatus: 'approved',
@@ -101,7 +90,7 @@ class ContentDummySeeder extends Seeder
 
         $articleC = $this->upsertArticle(
             user: $author,
-            category: $categories['opini'],
+            category: $categories['kebijakan-solusi'],
             title: 'Mengapa Komunitas Menentukan Kualitas Platform Pengetahuan',
             status: 'in_review',
             editorialStatus: 'pending_review',
@@ -112,7 +101,7 @@ class ContentDummySeeder extends Seeder
 
         $articleD = $this->upsertArticle(
             user: $expert,
-            category: $categories['edukasi'],
+            category: $categories['perspektif-pakar'],
             title: 'Checklist Menulis Artikel Teknis yang Mudah Dibaca',
             status: 'draft',
             editorialStatus: 'draft',

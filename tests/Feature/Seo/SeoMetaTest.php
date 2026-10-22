@@ -32,7 +32,7 @@ class SeoMetaTest extends TestCase
         ]);
 
         $this->article = Article::factory()->published()->for($this->author, 'author')->create([
-            'category_id' => Category::factory()->create(['name' => 'Riset & Inovasi', 'slug' => 'riset-inovasi'])->id,
+            'category_id' => Category::query()->where('slug', 'riset-inovasi')->firstOrFail()->id,
             'title' => 'Wakaf Uang Belum Populer',
             'slug' => 'wakaf-uang-belum-populer',
         ]);

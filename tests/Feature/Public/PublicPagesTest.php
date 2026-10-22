@@ -34,7 +34,7 @@ class PublicPagesTest extends TestCase
         $this->author->assignRole('author');
 
         $this->article = Article::factory()->published()->for($this->author, 'author')->create([
-            'category_id' => Category::factory()->create(['slug' => 'riset-inovasi', 'name' => 'Riset & Inovasi'])->id,
+            'category_id' => Category::query()->where('slug', 'riset-inovasi')->firstOrFail()->id,
             'title' => 'Wakaf Uang Belum Populer',
             'excerpt' => 'Ringkasan penelitian wakaf.',
         ]);
