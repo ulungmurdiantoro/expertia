@@ -143,7 +143,7 @@ const statusClass = (status) => ({
                                         {{ article.editorial_status }}
                                     </span>
                                     <span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{{ article.category?.name || 'Tanpa kategori' }}</span>
-                                    <span v-if="article.queue_age_hours !== null" class="text-xs text-gray-500">Menunggu {{ article.queue_age_hours }} jam</span>
+                                    <span v-if="article.editorial_status === 'pending_review' && article.queue_age_hours !== null" class="text-xs text-gray-500">Menunggu {{ article.queue_age_hours }} jam</span>
                                 </div>
                                 <h3 class="mt-3 text-lg font-semibold text-gray-900">{{ article.title }}</h3>
                                 <p class="mt-1 text-sm text-gray-600">Oleh {{ article.author?.name }} | Submitted {{ article.submitted_at || '-' }}</p>
@@ -167,19 +167,21 @@ const statusClass = (status) => ({
                                 <Link :href="route('editor.reviews.preview', article.id)" class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                                     Preview
                                 </Link>
-                                <button @click="approve(article.id)" class="rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white" :disabled="approvalForm.processing">
-                                    Approve
-                                </button>
-                                <button @click="openNotes[article.id] = openNotes[article.id] === 'reject' ? null : 'reject'" class="rounded bg-rose-600 px-3 py-2 text-sm font-medium text-white">
-                                    Reject
-                                </button>
-                                <button @click="openNotes[article.id] = openNotes[article.id] === 'revision' ? null : 'revision'" class="rounded bg-amber-500 px-3 py-2 text-sm font-medium text-white">
-                                    Request Revision
-                                </button>
+                                <template v-if="article.editorial_status === 'pending_review'">
+                                    <button @click="approve(article.id)" class="rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white" :disabled="approvalForm.processing">
+                                        Approve
+                                    </button>
+                                    <button @click="openNotes[article.id] = openNotes[article.id] === 'reject' ? null : 'reject'" class="rounded bg-rose-600 px-3 py-2 text-sm font-medium text-white">
+                                        Reject
+                                    </button>
+                                    <button @click="openNotes[article.id] = openNotes[article.id] === 'revision' ? null : 'revision'" class="rounded bg-amber-500 px-3 py-2 text-sm font-medium text-white">
+                                        Request Revision
+                                    </button>
+                                </template>
                             </div>
                         </div>
 
-                        <div v-if="openNotes[article.id]" class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
+                        <div v-if="openNotes[article.id] && article.editorial_status === 'pending_review'" class="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-4">
                             <label class="text-sm font-medium text-gray-700">
                                 Catatan {{ openNotes[article.id] === 'reject' ? 'penolakan' : 'revisi' }}
                             </label>
@@ -220,7 +222,7 @@ const statusClass = (status) => ({
                 <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                     <Link
                         :href="articles.prev_page_url || '#'"
-                        :class="articles.prev_page_url ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-400'"
+                        :class="articles.prev_page_url ? 'bg-gray-800 text-white' : 'pointer-events-none bg-gray-200 text-gray-400'"
                         class="rounded px-3 py-1 text-sm"
                     >
                         Previous
@@ -228,7 +230,7 @@ const statusClass = (status) => ({
                     <p class="text-sm text-gray-600">Halaman {{ articles.current_page }} / {{ articles.last_page }}</p>
                     <Link
                         :href="articles.next_page_url || '#'"
-                        :class="articles.next_page_url ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-400'"
+                        :class="articles.next_page_url ? 'bg-gray-800 text-white' : 'pointer-events-none bg-gray-200 text-gray-400'"
                         class="rounded px-3 py-1 text-sm"
                     >
                         Next

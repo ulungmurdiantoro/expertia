@@ -9,6 +9,7 @@ use App\Models\ArticleReview;
 use App\Models\Category;
 use App\Services\ArticleCommentThread;
 use App\Services\ArticleWorkflow;
+use App\Support\SiteTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -68,10 +69,10 @@ class ReviewQueueController extends Controller
                 'excerpt' => $article->excerpt,
                 'status' => $article->status,
                 'editorial_status' => $article->editorial_status,
-                'submitted_at' => optional($article->submitted_at)?->toDateTimeString(),
-                'published_at' => optional($article->published_at)?->toDateTimeString(),
-                'scheduled_at' => optional($article->scheduled_at)?->toDateTimeString(),
-                'reviewed_at' => optional($article->reviewed_at)?->toDateTimeString(),
+                'submitted_at' => SiteTime::format($article->submitted_at),
+                'published_at' => SiteTime::format($article->published_at),
+                'scheduled_at' => SiteTime::format($article->scheduled_at),
+                'reviewed_at' => SiteTime::format($article->reviewed_at),
                 'queue_age_hours' => $article->submitted_at ? (int) $article->submitted_at->diffInHours(now()) : null,
                 'category' => $article->category,
                 'author' => $article->author,
@@ -84,7 +85,7 @@ class ReviewQueueController extends Controller
                 'latest_review' => $article->latestReview ? [
                     'action' => $article->latestReview->action,
                     'note' => $article->latestReview->note,
-                    'reviewed_at' => optional($article->latestReview->reviewed_at)?->toDateTimeString(),
+                    'reviewed_at' => SiteTime::format($article->latestReview->reviewed_at),
                     'editor' => $article->latestReview->editor,
                 ] : null,
             ]);

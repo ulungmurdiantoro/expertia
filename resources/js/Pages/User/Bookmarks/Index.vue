@@ -34,14 +34,16 @@ const removeBookmark = (slug) => {
     });
 };
 
+// "Y-m-d H:i:s" dari server sudah dalam jam redaksi (WIB); "T" agar Safari bisa membacanya.
 const formatDate = (value) => {
-    if (!value) return '-';
+    const date = value ? new Date(String(value).replace(' ', 'T')) : null;
+    if (!date || Number.isNaN(date.getTime())) return '-';
 
     return new Intl.DateTimeFormat('id-ID', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
-    }).format(new Date(value));
+    }).format(date);
 };
 </script>
 
@@ -121,7 +123,7 @@ const formatDate = (value) => {
                 <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                     <Link
                         :href="bookmarks.prev_page_url || '#'"
-                        :class="bookmarks.prev_page_url ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-400'"
+                        :class="bookmarks.prev_page_url ? 'bg-gray-800 text-white' : 'pointer-events-none bg-gray-200 text-gray-400'"
                         class="rounded px-3 py-1 text-sm"
                     >
                         Previous
@@ -129,7 +131,7 @@ const formatDate = (value) => {
                     <p class="text-sm text-gray-600">Halaman {{ bookmarks.current_page }} / {{ bookmarks.last_page }}</p>
                     <Link
                         :href="bookmarks.next_page_url || '#'"
-                        :class="bookmarks.next_page_url ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-400'"
+                        :class="bookmarks.next_page_url ? 'bg-gray-800 text-white' : 'pointer-events-none bg-gray-200 text-gray-400'"
                         class="rounded px-3 py-1 text-sm"
                     >
                         Next

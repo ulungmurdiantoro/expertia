@@ -205,7 +205,7 @@ const statusClass = (status) => ({
                 <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                     <Link
                         :href="articles.prev_page_url || '#'"
-                        :class="articles.prev_page_url ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-400'"
+                        :class="articles.prev_page_url ? 'bg-gray-800 text-white' : 'pointer-events-none bg-gray-200 text-gray-400'"
                         class="rounded px-3 py-1 text-sm"
                     >
                         Previous
@@ -213,7 +213,7 @@ const statusClass = (status) => ({
                     <p class="text-sm text-gray-600">Halaman {{ articles.current_page }} / {{ articles.last_page }}</p>
                     <Link
                         :href="articles.next_page_url || '#'"
-                        :class="articles.next_page_url ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-400'"
+                        :class="articles.next_page_url ? 'bg-gray-800 text-white' : 'pointer-events-none bg-gray-200 text-gray-400'"
                         class="rounded px-3 py-1 text-sm"
                     >
                         Next

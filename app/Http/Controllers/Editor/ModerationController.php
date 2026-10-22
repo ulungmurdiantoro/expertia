@@ -8,6 +8,7 @@ use App\Models\ActivityLog;
 use App\Models\Article;
 use App\Models\Comment;
 use App\Models\Report;
+use App\Support\SiteTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -80,7 +81,7 @@ class ModerationController extends Controller
                 'id' => $comment->id,
                 'content' => $comment->content,
                 'status' => $comment->status,
-                'created_at' => $comment->created_at->toDateTimeString(),
+                'created_at' => SiteTime::format($comment->created_at),
                 'author' => $comment->author,
                 'article' => $comment->article,
                 'priority' => $this->resolveCommentPriority($comment),
@@ -208,7 +209,7 @@ class ModerationController extends Controller
                     'reason' => $report->reason,
                     'note' => $report->note,
                     'status' => $report->status,
-                    'created_at' => $report->created_at->toDateTimeString(),
+                    'created_at' => SiteTime::format($report->created_at),
                     'reporter' => $report->reporter,
                     'subject_type' => $subjectType,
                     'subject_key' => $subjectKey,
@@ -235,8 +236,8 @@ class ModerationController extends Controller
             'note' => $report->note,
             'status' => $report->status,
             'resolution_note' => $report->resolution_note,
-            'created_at' => $report->created_at->toDateTimeString(),
-            'handled_at' => optional($report->handled_at)?->toDateTimeString(),
+            'created_at' => SiteTime::format($report->created_at),
+            'handled_at' => SiteTime::format($report->handled_at),
             'reporter' => $report->reporter,
             'handler' => $report->handler,
             'subject_type' => class_basename($report->reportable_type),

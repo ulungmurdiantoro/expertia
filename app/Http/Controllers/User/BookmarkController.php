@@ -7,6 +7,7 @@ use App\Http\Resources\PublicAuthorResource;
 use App\Models\Article;
 use App\Services\ArticleScoringService;
 use App\Services\EventTrackingService;
+use App\Support\SiteTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -41,13 +42,13 @@ class BookmarkController extends Controller
             ->withQueryString()
             ->through(fn ($bookmark) => [
                 'id' => $bookmark->id,
-                'created_at' => $bookmark->created_at->toDateTimeString(),
+                'created_at' => SiteTime::format($bookmark->created_at),
                 'article' => [
                     'id' => $bookmark->article?->id,
                     'title' => $bookmark->article?->title,
                     'slug' => $bookmark->article?->slug,
                     'excerpt' => $bookmark->article?->excerpt,
-                    'published_at' => optional($bookmark->article?->published_at)?->toDateTimeString(),
+                    'published_at' => SiteTime::format($bookmark->article?->published_at),
                     'view_count' => $bookmark->article?->view_count,
                     'comment_count' => $bookmark->article?->comment_count,
                     'author' => $bookmark->article?->author

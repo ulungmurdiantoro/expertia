@@ -18,14 +18,16 @@ const statCards = computed(() => [
     { label: 'Artikel Dibaca', value: props.stats?.viewed_articles ?? 0, tone: 'border-emerald-200 bg-emerald-50 text-emerald-800' },
 ]);
 
+// "Y-m-d H:i:s" dari server sudah dalam jam redaksi (WIB); "T" agar Safari bisa membacanya.
 const formatDate = (value) => {
-    if (!value) return '-';
+    const date = value ? new Date(String(value).replace(' ', 'T')) : null;
+    if (!date || Number.isNaN(date.getTime())) return '-';
 
     return new Intl.DateTimeFormat('id-ID', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
-    }).format(new Date(value));
+    }).format(date);
 };
 </script>
 

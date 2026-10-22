@@ -137,7 +137,10 @@ const objectEntries = (value) => Object.entries(value || {});
                                 <tbody>
                                     <tr v-for="article in recentArticles" :key="article.id" class="border-t border-gray-100">
                                         <td class="px-3 py-3">
-                                            <Link :href="route('articles.show', article.slug)" class="font-medium text-gray-900 hover:text-indigo-600">
+                                            <Link
+                                                :href="article.is_publicly_visible ? route('articles.show', article.slug) : route('author.articles.edit', article.id)"
+                                                class="font-medium text-gray-900 hover:text-indigo-600"
+                                            >
                                                 {{ article.title }}
                                             </Link>
                                             <p class="text-xs text-gray-500">{{ article.category?.name || 'Tanpa kategori' }}</p>

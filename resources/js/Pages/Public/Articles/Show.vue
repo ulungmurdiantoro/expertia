@@ -1,7 +1,7 @@
 <script setup>
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import { articleKicker, contact, formatDate, readingMinutes, SITE_TIME_ZONE } from '@/site';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
@@ -287,6 +287,17 @@ const shareArticle = async () => {
     }
 };
 
+// Preview memakai PublicLayout yang tidak menampilkan flash/error, jadi hasil keputusan
+// editor ditampilkan sendiri di bilah preview.
+const page = usePage();
+const isAwaitingReview = computed(() => props.article.editorial_status === 'pending_review');
+const previewNotice = computed(() => {
+    const error = page.props.errors?.status;
+    if (error) return { tone: 'error', text: error };
+
+    return page.props.flash?.success ? { tone: 'success', text: page.props.flash.success } : null;
+});
+
 const approveArticle = () => {
     approvalForm.patch(route('editor.reviews.approve', props.article.id), {
         preserveScroll: true,
@@ -329,29 +340,38 @@ const requestRevision = () => {
                         <Link :href="route('editor.reviews.index')" class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                             Kembali
                         </Link>
-                        <button
-                            @click="approveArticle"
-                            :disabled="approvalForm.processing"
-                            class="rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
-                        >
-                            Approve
-                        </button>
-                        <button
-                            @click="openReviewAction = openReviewAction === 'reject' ? null : 'reject'"
-                            class="rounded bg-rose-600 px-3 py-2 text-sm font-medium text-white"
-                        >
-                            Reject
-                        </button>
-                        <button
-                            @click="openReviewAction = openReviewAction === 'revision' ? null : 'revision'"
-                            class="rounded bg-amber-500 px-3 py-2 text-sm font-medium text-white"
-                        >
-                            Request Revision
-                        </button>
+                        <template v-if="isAwaitingReview">
+                            <button
+                                @click="approveArticle"
+                                :disabled="approvalForm.processing"
+                                class="rounded bg-emerald-600 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                            >
+                                Approve
+                            </button>
+                            <button
+                                @click="openReviewAction = openReviewAction === 'reject' ? null : 'reject'"
+                                class="rounded bg-rose-600 px-3 py-2 text-sm font-medium text-white"
+                            >
+                                Reject
+                            </button>
+                            <button
+                                @click="openReviewAction = openReviewAction === 'revision' ? null : 'revision'"
+                                class="rounded bg-amber-500 px-3 py-2 text-sm font-medium text-white"
+                            >
+                                Request Revision
+                            </button>
+                        </template>
                     </div>
                 </div>
 
-                <div v-if="openReviewAction" class="mt-4 rounded-md bg-gray-50 p-4">
+                <p v-if="previewNotice" :class="previewNotice.tone === 'error' ? 'text-rose-700' : 'text-emerald-700'" class="mt-3 text-sm font-medium" role="status">
+                    {{ previewNotice.text }}
+                </p>
+                <p v-else-if="!isAwaitingReview" class="mt-3 text-sm text-gray-600">
+                    Naskah ini tidak sedang menunggu review, jadi tidak ada keputusan yang bisa diambil di sini.
+                </p>
+
+                <div v-if="openReviewAction && isAwaitingReview" class="mt-4 rounded-md bg-gray-50 p-4">
                     <label class="text-sm font-medium text-gray-700">
                         Catatan {{ openReviewAction === 'reject' ? 'penolakan' : 'revisi' }}
                     </label>

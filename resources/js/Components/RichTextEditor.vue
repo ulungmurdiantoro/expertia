@@ -1,9 +1,7 @@
 ﻿<script setup>
 import Image from '@tiptap/extension-image';
-import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import TextAlign from '@tiptap/extension-text-align';
-import Underline from '@tiptap/extension-underline';
 import StarterKit from '@tiptap/starter-kit';
 import { EditorContent, useEditor } from '@tiptap/vue-3';
 import { watch } from 'vue';
@@ -17,19 +15,27 @@ const props = defineProps({
         type: String,
         default: 'Tulis konten di sini...',
     },
+    // <fieldset disabled> tidak menjangkau area contenteditable TipTap.
+    editable: {
+        type: Boolean,
+        default: true,
+    },
 });
 
 const emit = defineEmits(['update:modelValue']);
 
 const editor = useEditor({
     content: props.modelValue || '',
+    editable: props.editable,
     extensions: [
-        StarterKit,
-        Underline,
-        Link.configure({
-            openOnClick: false,
-            autolink: true,
-            defaultProtocol: 'https',
+        // StarterKit v3 sudah memuat Link dan Underline; mendaftarkannya lagi membuat
+        // dua ekstensi bernama sama dan konfigurasi Link bisa tidak berlaku.
+        StarterKit.configure({
+            link: {
+                openOnClick: false,
+                autolink: true,
+                defaultProtocol: 'https',
+            },
         }),
         Image,
         TextAlign.configure({
@@ -48,6 +54,11 @@ const editor = useEditor({
         emit('update:modelValue', editorInstance.getHTML());
     },
 });
+
+watch(
+    () => props.editable,
+    (value) => editor.value?.setEditable(value),
+);
 
 watch(
     () => props.modelValue,

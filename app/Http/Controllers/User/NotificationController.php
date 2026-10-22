@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Models\UserNotification;
+use App\Support\SiteTime;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -22,8 +23,8 @@ class NotificationController extends Controller
                 'type' => $notification->type,
                 'title' => $notification->title,
                 'body' => $notification->body,
-                'read_at' => optional($notification->read_at)?->toDateTimeString(),
-                'created_at' => $notification->created_at->toDateTimeString(),
+                'read_at' => SiteTime::format($notification->read_at),
+                'created_at' => SiteTime::format($notification->created_at),
                 'data' => $notification->data_json,
             ]);
 

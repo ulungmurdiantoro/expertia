@@ -21,7 +21,7 @@ const hasAnyRole = (roles) => roles.some((role) => hasRole(role));
 // Menu admin mengikuti permission yang sama dengan middleware route-nya, supaya tidak ada menu yang berujung 403.
 const can = (permission) => (page.props.auth.permissions || []).includes(permission);
 const moderation = page.props.moderation || {};
-const unreadNotifications = computed(() => Number(page.props.notifications?.unread_count || 0));
+const unreadNotifications = computed(() => Number(page.props.notificationSummary?.unread_count || 0));
 const avatarUrl = computed(() => page.props.auth.user?.avatar_url || null);
 const userInitials = computed(() => (page.props.auth.user?.name || 'U').substring(0, 2).toUpperCase());
 const isActive = (pattern) => route().current(pattern);
@@ -38,6 +38,15 @@ const flashMessage = computed(() => {
 
     return message && message.text !== dismissedFlash.value ? message : null;
 });
+// Setiap respons membawa flash/errors baru. Tanpa reset ini, pesan yang sama dari aksi
+// berikutnya (mis. menyetujui komentar demi komentar) ikut tersembunyi, karena layout
+// tidak dibuat ulang pada submit form (preserveState).
+watch(
+    () => [page.props.flash, page.props.errors],
+    () => {
+        dismissedFlash.value = null;
+    },
+);
 
 const navItems = computed(() => [
     {

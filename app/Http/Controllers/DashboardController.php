@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Article;
+use App\Support\SiteTime;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -80,7 +81,7 @@ class DashboardController extends Controller
                 ->get()
                 ->map(fn ($bookmark) => [
                     'id' => $bookmark->id,
-                    'created_at' => $bookmark->created_at->toDateTimeString(),
+                    'created_at' => SiteTime::format($bookmark->created_at),
                     'article' => $bookmark->article?->isPubliclyVisible() ? $this->articleCard($bookmark->article) : null,
                 ])
                 ->filter(fn ($bookmark) => $bookmark['article'] !== null)
@@ -94,7 +95,7 @@ class DashboardController extends Controller
                 ->get()
                 ->unique('article_id')
                 ->map(fn ($event) => [
-                    'occurred_at' => optional($event->occurred_at)?->toDateTimeString(),
+                    'occurred_at' => SiteTime::format($event->occurred_at),
                     'article' => $event->article?->isPubliclyVisible() ? $this->articleCard($event->article) : null,
                 ])
                 ->filter(fn ($event) => $event['article'] !== null)
@@ -132,7 +133,7 @@ class DashboardController extends Controller
             'slug' => $article->slug,
             'excerpt' => $article->excerpt,
             'thumbnail_url' => $article->thumbnail ? Storage::url($article->thumbnail) : null,
-            'published_at' => optional($article->published_at)?->toDateTimeString(),
+            'published_at' => SiteTime::format($article->published_at),
             'author' => $article->author ? PublicAuthorResource::make($article->author)->resolve() : null,
             'category' => $article->category,
             'view_count' => $article->view_count,

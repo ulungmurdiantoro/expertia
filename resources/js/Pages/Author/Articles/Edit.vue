@@ -2,7 +2,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import RichTextEditor from '@/Components/RichTextEditor.vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
 const props = defineProps({
     article: Object,
@@ -47,8 +47,20 @@ const contentWordCount = computed(() => {
 const canUpdate = computed(() => props.article.can_update !== false);
 const canSubmit = computed(() => props.article.can_submit === true);
 
+const thumbnailInput = ref(null);
+
 const onThumbnailChange = (event) => {
     form.thumbnail = event.target.files[0] ?? null;
+};
+
+// Setelah tersimpan: isi form menjadi titik awal baru (isDirty kembali false) dan
+// thumbnail tidak ikut terunggah ulang pada simpan berikutnya.
+const markSaved = () => {
+    form.thumbnail = null;
+    if (thumbnailInput.value) {
+        thumbnailInput.value.value = '';
+    }
+    form.defaults();
 };
 
 const update = () => {
@@ -57,6 +69,7 @@ const update = () => {
         _method: 'put',
     })).post(route('author.articles.update', props.article.id), {
         forceFormData: true,
+        onSuccess: markSaved,
         onFinish: () => form.transform((data) => data),
     });
 };
@@ -78,6 +91,7 @@ const submitForReview = () => {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => {
+                markSaved();
                 sendToReview();
             },
             onFinish: () => form.transform((data) => data),
@@ -152,6 +166,7 @@ const submitForReview = () => {
                         <div class="mt-8">
                             <RichTextEditor
                                 v-model="form.content"
+                                :editable="canUpdate"
                                 placeholder="Mulai menulis ceritamu di sini..."
                             />
                         </div>
@@ -183,6 +198,7 @@ const submitForReview = () => {
                                 class="h-28 w-full rounded-lg border border-zinc-200 object-cover"
                             />
                             <input
+                                ref="thumbnailInput"
                                 type="file"
                                 accept="image/*"
                                 @input="onThumbnailChange"

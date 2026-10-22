@@ -23,6 +23,9 @@ class UserController extends Controller
     /** Role yang bisa dipilih di form, dengan label yang dipakai di panduan. */
     private const ROLE_LABELS = [
         'user' => 'Pembaca',
+        // Dua role ini saat ini setara Pembaca (lihat RoleAndPermissionSeeder).
+        'subscriber' => 'Pembaca (Subscriber)',
+        'partner-manager' => 'Pembaca (Partner Manager)',
         'author' => 'Kontributor',
         'verified-expert' => 'Kontributor Terverifikasi',
         'editor' => 'Editor',

@@ -60,7 +60,9 @@ class HandleInertiaRequests extends Middleware
                 'pending_comments' => fn () => Comment::where('status', 'pending')->count(),
                 'pending_reports' => fn () => Report::where('status', 'pending')->count(),
             ] : null,
-            'notifications' => [
+            // Bukan "notifications": nama itu dipakai halaman Notifikasi untuk daftarnya dan
+            // akan menimpa prop bersama ini.
+            'notificationSummary' => [
                 'unread_count' => fn () => $user ? UserNotification::where('user_id', $user->id)->whereNull('read_at')->count() : 0,
             ],
         ];

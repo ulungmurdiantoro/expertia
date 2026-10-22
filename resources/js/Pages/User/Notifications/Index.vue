@@ -1,18 +1,18 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
-const props = defineProps({
+defineProps({
     notifications: Object,
 });
 
+const page = usePage();
 const markAllForm = useForm({});
 const markOneForm = useForm({});
 
-const unreadCount = computed(() =>
-    (props.notifications?.data || []).filter((notification) => notification.read_at === null).length,
-);
+// Semua notifikasi belum dibaca, bukan hanya yang ada di halaman daftar ini.
+const unreadCount = computed(() => Number(page.props.notificationSummary?.unread_count || 0));
 
 const markAllAsRead = () => {
     markAllForm.patch(route('me.notifications.read-all'), {

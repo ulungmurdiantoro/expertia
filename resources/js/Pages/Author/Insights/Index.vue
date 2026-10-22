@@ -541,7 +541,10 @@ const tooltipLines = (metricKey) => {
                                 <tbody>
                                     <tr v-for="article in top_articles" :key="article.id" class="border-b border-gray-100">
                                         <td class="px-2 py-2 font-medium text-gray-900">
-                                            <Link :href="route('articles.show', article.slug)" class="hover:text-indigo-600">
+                                            <Link
+                                                :href="article.is_publicly_visible ? route('articles.show', article.slug) : route('author.articles.edit', article.id)"
+                                                class="hover:text-indigo-600"
+                                            >
                                                 {{ article.title }}
                                             </Link>
                                         </td>

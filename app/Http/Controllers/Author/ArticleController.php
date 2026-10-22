@@ -13,6 +13,7 @@ use App\Models\ArticleReview;
 use App\Models\Category;
 use App\Services\ArticleWorkflow;
 use App\Support\ImageOptimizer;
+use App\Support\SiteTime;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -63,9 +64,9 @@ class ArticleController extends Controller
                 'editorial_status' => $article->editorial_status,
                 'is_publicly_visible' => $article->isPubliclyVisible(),
                 'is_hidden_by_moderator' => $article->visibility === Article::VISIBILITY_PRIVATE,
-                'submitted_at' => optional($article->submitted_at)?->toDateTimeString(),
-                'published_at' => optional($article->published_at)?->toDateTimeString(),
-                'scheduled_at' => optional($article->scheduled_at)?->toDateTimeString(),
+                'submitted_at' => SiteTime::format($article->submitted_at),
+                'published_at' => SiteTime::format($article->published_at),
+                'scheduled_at' => SiteTime::format($article->scheduled_at),
                 'category' => $article->category,
                 'engagement' => [
                     'views' => $article->view_count,
@@ -76,10 +77,10 @@ class ArticleController extends Controller
                 'latest_review' => $article->latestReview ? [
                     'action' => $article->latestReview->action,
                     'note' => $article->latestReview->note,
-                    'reviewed_at' => optional($article->latestReview->reviewed_at)?->toDateTimeString(),
+                    'reviewed_at' => SiteTime::format($article->latestReview->reviewed_at),
                     'editor' => $article->latestReview->editor,
                 ] : null,
-                'updated_at' => $article->updated_at->toDateTimeString(),
+                'updated_at' => SiteTime::format($article->updated_at),
             ]);
 
         $statsQuery = Article::query()

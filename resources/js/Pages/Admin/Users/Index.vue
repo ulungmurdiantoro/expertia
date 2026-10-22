@@ -112,7 +112,7 @@ const resetFilters = () => {
                 <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                     <Link
                         :href="users.prev_page_url || '#'"
-                        :class="users.prev_page_url ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-400'"
+                        :class="users.prev_page_url ? 'bg-gray-800 text-white' : 'pointer-events-none bg-gray-200 text-gray-400'"
                         class="rounded px-3 py-1 text-sm"
                     >
                         Previous
@@ -120,7 +120,7 @@ const resetFilters = () => {
                     <p class="text-sm text-gray-600">Halaman {{ users.current_page }} / {{ users.last_page }} · {{ users.total }} pengguna</p>
                     <Link
                         :href="users.next_page_url || '#'"
-                        :class="users.next_page_url ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-400'"
+                        :class="users.next_page_url ? 'bg-gray-800 text-white' : 'pointer-events-none bg-gray-200 text-gray-400'"
                         class="rounded px-3 py-1 text-sm"
                     >
                         Next

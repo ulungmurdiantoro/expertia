@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
+use App\Support\SiteTime;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -26,7 +27,7 @@ class AuditLogController extends Controller
                 'subject_id' => $log->subject_id,
                 'meta' => $log->meta_json,
                 'user' => $log->user,
-                'created_at' => optional($log->created_at)?->toDateTimeString(),
+                'created_at' => SiteTime::format($log->created_at),
             ]);
 
         return Inertia::render('Admin/AuditLogs/Index', [

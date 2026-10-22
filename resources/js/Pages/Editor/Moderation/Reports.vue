@@ -38,6 +38,8 @@ const bulkActionForm = useForm({
 const selectedIds = ref([]);
 
 const applyFilters = () => {
+    // Pilihan lama bisa berisi baris yang tidak lagi tampil setelah filter berubah.
+    selectedIds.value = [];
     router.get(route('editor.moderation.reports.index'), filterForm.data(), {
         preserveState: true,
         replace: true,
@@ -45,7 +47,10 @@ const applyFilters = () => {
 };
 
 const resetFilters = () => {
-    filterForm.reset();
+    // Bukan filterForm.reset(): itu kembali ke filter saat halaman dimuat (mis. dari URL), bukan kosong.
+    Object.keys(filterForm.data()).forEach((key) => {
+        filterForm[key] = '';
+    });
     applyFilters();
 };
 
@@ -149,7 +154,7 @@ const submitBulkSubjectAction = () => {
 
                 <div class="flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                     <label class="inline-flex items-center gap-2 text-sm text-gray-700">
-                        <input type="checkbox" @change="toggleAll" />
+                        <input type="checkbox" :checked="reports.data.length > 0 && selectedIds.length === reports.data.length" @change="toggleAll" />
                         Pilih semua di halaman ini
                     </label>
                     <select v-model="bulkForm.status" class="rounded-md border-gray-300 text-sm">
@@ -221,7 +226,7 @@ const submitBulkSubjectAction = () => {
                 <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                     <Link
                         :href="reports.prev_page_url || '#'"
-                        :class="reports.prev_page_url ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-400'"
+                        :class="reports.prev_page_url ? 'bg-gray-800 text-white' : 'pointer-events-none bg-gray-200 text-gray-400'"
                         class="rounded px-3 py-1 text-sm"
                     >
                         Previous
@@ -229,7 +234,7 @@ const submitBulkSubjectAction = () => {
                     <p class="text-sm text-gray-600">Halaman {{ reports.current_page }} / {{ reports.last_page }}</p>
                     <Link
                         :href="reports.next_page_url || '#'"
-                        :class="reports.next_page_url ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-400'"
+                        :class="reports.next_page_url ? 'bg-gray-800 text-white' : 'pointer-events-none bg-gray-200 text-gray-400'"
                         class="rounded px-3 py-1 text-sm"
                     >
                         Next

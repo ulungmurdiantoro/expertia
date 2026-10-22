@@ -23,7 +23,10 @@ const applyFilters = () => {
 };
 
 const resetFilters = () => {
-    filterForm.reset();
+    // Bukan filterForm.reset(): itu kembali ke filter saat halaman dimuat (mis. dari URL), bukan kosong.
+    Object.keys(filterForm.data()).forEach((key) => {
+        filterForm[key] = '';
+    });
     applyFilters();
 };
 </script>
@@ -78,7 +81,7 @@ const resetFilters = () => {
                 <div class="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
                     <Link
                         :href="logs.prev_page_url || '#'"
-                        :class="logs.prev_page_url ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-400'"
+                        :class="logs.prev_page_url ? 'bg-gray-800 text-white' : 'pointer-events-none bg-gray-200 text-gray-400'"
                         class="rounded px-3 py-1 text-sm"
                     >
                         Previous
@@ -86,7 +89,7 @@ const resetFilters = () => {
                     <p class="text-sm text-gray-600">Halaman {{ logs.current_page }} / {{ logs.last_page }}</p>
                     <Link
                         :href="logs.next_page_url || '#'"
-                        :class="logs.next_page_url ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-400'"
+                        :class="logs.next_page_url ? 'bg-gray-800 text-white' : 'pointer-events-none bg-gray-200 text-gray-400'"
                         class="rounded px-3 py-1 text-sm"
                     >
                         Next

@@ -11,6 +11,7 @@ use App\Models\Report;
 use App\Models\User;
 use App\Support\PublicPagesSsrGateway;
 use App\Support\SchedulerHeartbeat;
+use App\Support\SiteTime;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -91,7 +92,8 @@ class DashboardController extends Controller
                     'slug' => $article->slug,
                     'status' => $article->status,
                     'editorial_status' => $article->editorial_status,
-                    'updated_at' => optional($article->updated_at)?->toDateTimeString(),
+                    'is_publicly_visible' => $article->isPubliclyVisible(),
+                    'updated_at' => SiteTime::format($article->updated_at),
                     'author' => $article->author,
                     'category' => $article->category,
                 ]),
@@ -106,7 +108,7 @@ class DashboardController extends Controller
                     'status' => $report->status,
                     'subject_type' => class_basename($report->reportable_type),
                     'reporter' => $report->reporter,
-                    'created_at' => optional($report->created_at)?->toDateTimeString(),
+                    'created_at' => SiteTime::format($report->created_at),
                 ]),
             'recentActivity' => ActivityLog::query()
                 ->with('user:id,name,email')
@@ -119,7 +121,7 @@ class DashboardController extends Controller
                     'subject_type' => class_basename((string) $log->subject_type),
                     'subject_id' => $log->subject_id,
                     'user' => $log->user,
-                    'created_at' => optional($log->created_at)?->toDateTimeString(),
+                    'created_at' => SiteTime::format($log->created_at),
                 ]),
         ]);
     }

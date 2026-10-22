@@ -4,7 +4,7 @@ import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
-import { computed, onBeforeUnmount } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 
 const props = defineProps({
     mustVerifyEmail: {
@@ -19,12 +19,15 @@ const props = defineProps({
     },
 });
 
-const user = usePage().props.auth.user;
+const page = usePage();
+// Reaktif: setelah Save, props.auth.user berisi foto dan data terbaru.
+const user = computed(() => page.props.auth.user);
+const avatarInput = ref(null);
 let objectUrl = null;
 
 const form = useForm({
-    name: user.name,
-    email: user.email,
+    name: user.value.name,
+    email: user.value.email,
     ...(props.contributorProfile
         ? {
               position: props.contributorProfile.position ?? '',
@@ -45,7 +48,11 @@ const avatarPreview = computed(() => {
         return objectUrl;
     }
 
-    return user.avatar_url || null;
+    if (form.remove_avatar) {
+        return null;
+    }
+
+    return user.value.avatar_url || null;
 });
 
 const setAvatar = (event) => {
@@ -57,6 +64,9 @@ const setAvatar = (event) => {
 const removeAvatar = () => {
     form.avatar = null;
     form.remove_avatar = true;
+    if (avatarInput.value) {
+        avatarInput.value.value = '';
+    }
 };
 
 // Form berisi file (foto), jadi dikirim multipart. PHP hanya membaca body multipart
@@ -68,6 +78,14 @@ const submit = () => {
     })).post(route('profile.update'), {
         forceFormData: true,
         preserveScroll: true,
+        // Foto yang sudah tersimpan tidak ikut terunggah ulang saat Save ditekan lagi.
+        onSuccess: () => {
+            form.avatar = null;
+            form.remove_avatar = false;
+            if (avatarInput.value) {
+                avatarInput.value.value = '';
+            }
+        },
         onFinish: () => form.transform((data) => data),
     });
 };
@@ -115,6 +133,7 @@ onBeforeUnmount(() => {
                     <div class="space-y-2">
                         <input
                             id="avatar"
+                            ref="avatarInput"
                             type="file"
                             accept=".jpg,.jpeg,.png,.webp"
                             @change="setAvatar"

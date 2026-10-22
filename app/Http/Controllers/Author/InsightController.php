@@ -9,6 +9,7 @@ use App\Models\Bookmark;
 use App\Models\Category;
 use App\Models\Comment;
 use App\Models\TrackingEvent;
+use App\Support\SiteTime;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -61,6 +62,7 @@ class InsightController extends Controller
                 'title',
                 'slug',
                 'status',
+                'visibility',
                 'view_count',
                 'comment_count',
                 'bookmark_count',
@@ -74,12 +76,14 @@ class InsightController extends Controller
                 'slug' => $article->slug,
                 'category' => $article->category,
                 'status' => $article->status,
+                // Draf atau artikel tersembunyi ditautkan ke halaman edit, bukan halaman publik (404).
+                'is_publicly_visible' => $article->isPubliclyVisible(),
                 'view_count' => $article->view_count,
                 'comment_count' => $article->comment_count,
                 'bookmark_count' => $article->bookmark_count,
                 'reaction_count' => $article->like_count,
                 'score_trending' => (float) $article->score_trending,
-                'published_at' => optional($article->published_at)?->toDateTimeString(),
+                'published_at' => SiteTime::format($article->published_at),
             ])
             ->values();
 
@@ -253,7 +257,7 @@ class InsightController extends Controller
                     $article->slug,
                     $article->category?->name,
                     $article->status,
-                    optional($article->published_at)?->toDateTimeString(),
+                    SiteTime::format($article->published_at),
                     $article->view_count,
                     $article->comment_count,
                     $article->bookmark_count,
