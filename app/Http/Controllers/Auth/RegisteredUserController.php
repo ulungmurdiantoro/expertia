@@ -3,14 +3,13 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use App\Models\ExpertiseOption;
 use App\Models\User;
+use App\Support\ExpertiseAreas;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
 use Illuminate\Validation\ValidationException;
@@ -19,23 +18,6 @@ use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
-    private const AUTHOR_EXPERTISE_OPTIONS = [
-        'SPMI',
-        'AMI',
-        'Tata Kelola Perguruan Tinggi',
-        'OBE',
-        'Akreditasi Nasional',
-        'Akreditasi internasional',
-        'Pemeringkatan PT Nasional dan Internasional (Qs Rank, THE Rank dll)',
-        'Reformasi Birokrasi dan Zona Integritas',
-        'Rencana Strategis dan Proses Bisnis PT',
-        'SMAP ISO 37001',
-        'SMOP ISO 21001',
-        'SMM ISO 9001',
-        'SML ISO 14001',
-        'SMKI ISO 27001',
-    ];
-
     /**
      * Display the registration view.
      */
@@ -94,7 +76,7 @@ class RegisteredUserController extends Controller
     private function renderRegistrationPage(string $registrationType): Response
     {
         $isAuthorRegistration = $registrationType === 'author';
-        $expertiseOptions = $this->getAuthorExpertiseOptions();
+        $expertiseOptions = ExpertiseAreas::options();
 
         return Inertia::render('Auth/Register', [
             'registrationType' => $registrationType,
@@ -121,7 +103,7 @@ class RegisteredUserController extends Controller
     private function createUserWithRole(Request $request, string $role): User
     {
         $isAuthor = $role !== 'user';
-        $expertiseOptions = $isAuthor ? $this->getAuthorExpertiseOptions() : [];
+        $expertiseOptions = $isAuthor ? ExpertiseAreas::options() : [];
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -138,7 +120,9 @@ class RegisteredUserController extends Controller
             'expertise_other' => [$isAuthor ? 'required_without:expertise_topics' : 'nullable', 'string', 'max:255'],
         ]);
 
-        $expertiseAreas = $isAuthor ? $this->buildExpertiseAreas($validated) : null;
+        $expertiseAreas = $isAuthor
+            ? ExpertiseAreas::fromInput($validated['expertise_topics'] ?? [], $validated['expertise_other'] ?? null)
+            : null;
 
         $user = User::create([
             'name' => $validated['name'],
@@ -155,45 +139,5 @@ class RegisteredUserController extends Controller
         $user->syncRoles([$role]);
 
         return $user;
-    }
-
-    /**
-     * @param  array<string, mixed>  $validated
-     * @return array<int, string>|null
-     */
-    private function buildExpertiseAreas(array $validated): ?array
-    {
-        $topics = collect($validated['expertise_topics'] ?? [])
-            ->filter(fn ($value) => is_string($value) && $value !== '')
-            ->values();
-
-        $other = trim((string) ($validated['expertise_other'] ?? ''));
-
-        if ($other !== '') {
-            $topics->push("Other: {$other}");
-        }
-
-        return $topics->isEmpty() ? null : $topics->all();
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function getAuthorExpertiseOptions(): array
-    {
-        if (!Schema::hasTable('expertise_options')) {
-            return self::AUTHOR_EXPERTISE_OPTIONS;
-        }
-
-        $options = ExpertiseOption::query()
-            ->where('is_active', true)
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->pluck('name')
-            ->filter(fn ($name) => is_string($name) && $name !== '')
-            ->values()
-            ->all();
-
-        return count($options) > 0 ? $options : self::AUTHOR_EXPERTISE_OPTIONS;
     }
 }

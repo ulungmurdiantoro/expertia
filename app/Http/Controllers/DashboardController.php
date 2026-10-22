@@ -39,7 +39,7 @@ class DashboardController extends Controller
 
         $recommendedArticles = Article::query()
             ->with(['author:id,name,profile_slug', 'category:id,name,slug'])
-            ->where('status', 'published')
+            ->publiclyVisible()
             ->where(function ($query) use ($recommendedArticleIds, $followedAuthorIds): void {
                 $query->whereIn('id', $recommendedArticleIds)
                     ->orWhereIn('user_id', $followedAuthorIds);
@@ -54,7 +54,7 @@ class DashboardController extends Controller
         if ($recommendedArticles->isEmpty()) {
             $recommendedArticles = Article::query()
                 ->with(['author:id,name,profile_slug', 'category:id,name,slug'])
-                ->where('status', 'published')
+                ->publiclyVisible()
                 ->when($bookmarkedArticleIds->isNotEmpty(), fn ($query) => $query->whereNotIn('id', $bookmarkedArticleIds))
                 ->orderByDesc('score_trending')
                 ->latest('published_at')
@@ -81,7 +81,7 @@ class DashboardController extends Controller
                 ->map(fn ($bookmark) => [
                     'id' => $bookmark->id,
                     'created_at' => $bookmark->created_at->toDateTimeString(),
-                    'article' => $bookmark->article ? $this->articleCard($bookmark->article) : null,
+                    'article' => $bookmark->article?->isPubliclyVisible() ? $this->articleCard($bookmark->article) : null,
                 ])
                 ->filter(fn ($bookmark) => $bookmark['article'] !== null)
                 ->values(),
@@ -95,7 +95,7 @@ class DashboardController extends Controller
                 ->unique('article_id')
                 ->map(fn ($event) => [
                     'occurred_at' => optional($event->occurred_at)?->toDateTimeString(),
-                    'article' => $event->article ? $this->articleCard($event->article) : null,
+                    'article' => $event->article?->isPubliclyVisible() ? $this->articleCard($event->article) : null,
                 ])
                 ->filter(fn ($event) => $event['article'] !== null)
                 ->values(),

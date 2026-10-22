@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\RolePermissionController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Author\ArticleController as AuthorArticleController;
 use App\Http\Controllers\Author\InsightController as AuthorInsightController;
@@ -83,6 +84,9 @@ Route::middleware(['auth', 'verified', 'role_or_permission:author|verified-exper
     Route::get('/articles/{article}/edit', [AuthorArticleController::class, 'edit'])->middleware('can:articles.update.own')->name('articles.edit');
     Route::put('/articles/{article}', [AuthorArticleController::class, 'update'])->middleware('can:articles.update.own')->name('articles.update');
     Route::patch('/articles/{article}/submit', [AuthorArticleController::class, 'submit'])->middleware('can:articles.submit')->name('articles.submit');
+    Route::delete('/articles/{article}', [AuthorArticleController::class, 'destroy'])->middleware('can:articles.delete')->name('articles.destroy');
+    // Membatalkan hide/archive dari moderasi; hak yang sama dengan archive_article.
+    Route::patch('/articles/{article}/republish', [AuthorArticleController::class, 'republish'])->middleware('can:reports.subject_action.archive')->name('articles.republish');
     Route::get('/insights', AuthorInsightController::class)->middleware('can:analytics.view.author')->name('insights.index');
     Route::get('/insights/export', [AuthorInsightController::class, 'export'])->middleware('can:analytics.view.author')->name('insights.export');
     Route::get('/insights/export-articles', [AuthorInsightController::class, 'exportArticles'])->middleware('can:analytics.view.author')->name('insights.export-articles');
@@ -115,6 +119,10 @@ Route::middleware(['auth', 'verified', 'role:admin|super-admin'])->prefix('admin
     // Akun kontributor dibuat redaksi setelah kurasi; pendaftaran author publik ditutup.
     Route::get('/contributors/create', [RegisteredUserController::class, 'createAuthor'])->middleware('can:users.assign_role')->name('contributors.create');
     Route::post('/contributors', [RegisteredUserController::class, 'storeAuthor'])->middleware('can:users.assign_role')->name('contributors.store');
+
+    Route::get('/users', [AdminUserController::class, 'index'])->middleware('can:users.assign_role')->name('users.index');
+    Route::get('/users/{user}/edit', [AdminUserController::class, 'edit'])->middleware('can:users.assign_role')->name('users.edit');
+    Route::put('/users/{user}', [AdminUserController::class, 'update'])->middleware('can:users.assign_role')->name('users.update');
 
     Route::get('/roles', [RolePermissionController::class, 'index'])->middleware('can:system.roles.manage')->name('roles.index');
     Route::get('/roles/{role}/edit', [RolePermissionController::class, 'edit'])->middleware('can:system.roles.manage')->name('roles.edit');

@@ -46,7 +46,7 @@ const hideImage = (event) => {
                         <h1>{{ author.name }}</h1>
                         <p v-if="affiliation" class="affiliation">{{ affiliation }}</p>
                         <p v-if="author.expertise_areas?.length" class="expertise">{{ author.expertise_areas.join(' · ') }}</p>
-                        <p v-if="author.bio" class="sub">{{ author.bio }}</p>
+                        <p v-if="author.bio" class="sub" style="white-space: pre-line">{{ author.bio }}</p>
                         <div v-if="viewer.is_authenticated && !viewer.is_own_profile" class="actions" style="margin-top: 28px">
                             <button
                                 v-if="!viewer.is_following"

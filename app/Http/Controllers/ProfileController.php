@@ -21,9 +21,18 @@ class ProfileController extends Controller
      */
     public function edit(Request $request): Response
     {
+        $user = $request->user();
+
         return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => $request->user() instanceof MustVerifyEmail,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => session('status'),
+            // Hanya akun yang bisa menulis yang punya profil kontributor untuk dilengkapi.
+            'contributorProfile' => $user->can('articles.create') ? [
+                'position' => $user->position,
+                'bio' => $user->bio,
+                'bio_max_length' => ProfileUpdateRequest::BIO_MAX_LENGTH,
+                'public_url' => $user->profile_slug ? route('authors.show', $user->profile_slug) : null,
+            ] : null,
         ]);
     }
 

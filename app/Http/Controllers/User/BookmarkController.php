@@ -24,7 +24,7 @@ class BookmarkController extends Controller
         $bookmarks = $request->user()->bookmarks()
             ->with(['article.author:id,name,profile_slug', 'article.category:id,name,slug'])
             ->whereHas('article', function ($query) use ($filters): void {
-                $query->where('status', 'published')
+                $query->publiclyVisible()
                     ->when($filters['q'] !== '', function ($inner) use ($filters): void {
                         $q = $filters['q'];
 
@@ -76,10 +76,12 @@ class BookmarkController extends Controller
             'article_id' => ['required', 'integer', 'exists:articles,id'],
         ]);
 
-        $bookmark = $request->user()->bookmarks()->firstOrCreate($validated);
-        $article = Article::query()->find($validated['article_id']);
+        $article = Article::query()->findOrFail($validated['article_id']);
+        abort_unless($article->isPubliclyVisible(), 404);
 
-        if ($bookmark->wasRecentlyCreated && $article) {
+        $bookmark = $request->user()->bookmarks()->firstOrCreate(['article_id' => $article->id]);
+
+        if ($bookmark->wasRecentlyCreated) {
             $article->update([
                 'bookmark_count' => $article->bookmarks()->count(),
             ]);
@@ -87,7 +89,7 @@ class BookmarkController extends Controller
             $articleScoringService->scoreArticle($article->fresh());
         }
 
-        return back()->with('success', 'Artikel ditambahkan ke bookmark.');
+        return back()->with('success', 'Artikel disimpan ke Bookmark Saya.');
     }
 
     public function destroy(

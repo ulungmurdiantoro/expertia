@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Editor;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Public\DiscoveryController;
 use App\Models\ActivityLog;
 use App\Models\Article;
 use App\Models\Comment;
@@ -509,7 +510,7 @@ class ModerationController extends Controller
 
             if ($action === 'hide_article') {
                 $article->update([
-                    'visibility' => 'private',
+                    'visibility' => Article::VISIBILITY_PRIVATE,
                 ]);
                 $applied = true;
             }
@@ -517,9 +518,13 @@ class ModerationController extends Controller
             if ($action === 'archive_article') {
                 $article->update([
                     'status' => 'archived',
-                    'visibility' => 'private',
+                    'visibility' => Article::VISIBILITY_PRIVATE,
                 ]);
                 $applied = true;
+            }
+
+            if ($applied) {
+                DiscoveryController::forgetCache();
             }
         }
 

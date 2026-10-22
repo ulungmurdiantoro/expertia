@@ -6,12 +6,16 @@ import TextInput from '@/Components/TextInput.vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount } from 'vue';
 
-defineProps({
+const props = defineProps({
     mustVerifyEmail: {
         type: Boolean,
     },
     status: {
         type: String,
+    },
+    contributorProfile: {
+        type: Object,
+        default: null,
     },
 });
 
@@ -21,6 +25,12 @@ let objectUrl = null;
 const form = useForm({
     name: user.name,
     email: user.email,
+    ...(props.contributorProfile
+        ? {
+              position: props.contributorProfile.position ?? '',
+              bio: props.contributorProfile.bio ?? '',
+          }
+        : {}),
     avatar: null,
     remove_avatar: false,
 });
@@ -152,6 +162,56 @@ onBeforeUnmount(() => {
                 />
 
                 <InputError class="mt-2" :message="form.errors.email" />
+            </div>
+
+            <div v-if="contributorProfile" class="space-y-6 border-t border-gray-200 pt-6">
+                <div>
+                    <h3 class="text-base font-medium text-gray-900">Profil publik kontributor</h3>
+                    <p class="mt-1 text-sm text-gray-600">
+                        Jabatan dan bio tampil di halaman profil Anda yang dilihat pembaca.
+                        <a
+                            v-if="contributorProfile.public_url"
+                            :href="contributorProfile.public_url"
+                            target="_blank"
+                            rel="noopener"
+                            class="text-indigo-600 underline hover:text-indigo-800"
+                        >Lihat profil publik</a>
+                    </p>
+                </div>
+
+                <div>
+                    <InputLabel for="position" value="Jabatan" />
+                    <TextInput
+                        id="position"
+                        type="text"
+                        class="mt-1 block w-full"
+                        v-model="form.position"
+                        maxlength="255"
+                        placeholder="mis. Dosen Ekonomi Syariah"
+                        autocomplete="organization-title"
+                    />
+                    <InputError class="mt-2" :message="form.errors.position" />
+                </div>
+
+                <div>
+                    <InputLabel for="bio" value="Bio" />
+                    <textarea
+                        id="bio"
+                        v-model="form.bio"
+                        rows="5"
+                        :maxlength="contributorProfile.bio_max_length"
+                        placeholder="Dua sampai empat kalimat tentang bidang, riset, dan pengalaman Anda."
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    />
+                    <p class="mt-1 text-xs text-gray-500">
+                        {{ (form.bio || '').length }}/{{ contributorProfile.bio_max_length }} karakter
+                    </p>
+                    <InputError class="mt-2" :message="form.errors.bio" />
+                </div>
+
+                <p class="text-sm text-gray-600">
+                    Institusi dan bidang keahlian diatur redaksi. Hubungi redaksi bila perlu diubah.
+                </p>
             </div>
 
             <div v-if="mustVerifyEmail && user.email_verified_at === null">

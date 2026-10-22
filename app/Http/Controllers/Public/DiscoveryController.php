@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Public;
 
-use App\Enums\ArticleStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Article;
 use App\Models\Category;
@@ -27,6 +26,19 @@ class DiscoveryController extends Controller
 
     /** Batas artikel di RSS dan llms-full.txt agar ukurannya wajar. */
     private const FULL_TEXT_LIMIT = 200;
+
+    private const CACHE_KEYS = ['discovery:sitemap', 'discovery:feed', 'discovery:llms', 'discovery:llms-full'];
+
+    /**
+     * Dipanggil saat artikel ditarik dari publik agar isinya tidak bertahan di RSS
+     * dan llms-full.txt sampai cache kedaluwarsa.
+     */
+    public static function forgetCache(): void
+    {
+        foreach (self::CACHE_KEYS as $key) {
+            Cache::forget($key);
+        }
+    }
 
     public function robots(): Response
     {
@@ -187,7 +199,7 @@ class DiscoveryController extends Controller
 
     public function articleMarkdown(Article $article, ArticleMarkdown $markdown): Response
     {
-        abort_unless($article->isPublished(), 404);
+        abort_unless($article->isPubliclyVisible(), 404);
 
         $article->load(['author:id,name,profile_slug', 'category:id,name,slug', 'tags:id,name,slug']);
 
@@ -201,7 +213,7 @@ class DiscoveryController extends Controller
     private function publishedArticles(): Builder
     {
         return Article::query()
-            ->where('status', ArticleStatus::Published->value)
+            ->publiclyVisible()
             ->whereNotNull('published_at')
             ->latest('published_at');
     }
@@ -213,7 +225,7 @@ class DiscoveryController extends Controller
     {
         return Category::query()
             ->where('is_active', true)
-            ->whereHas('articles', fn ($query) => $query->where('status', ArticleStatus::Published->value)->whereNotNull('published_at'))
+            ->whereHas('articles', fn ($query) => $query->publiclyVisible()->whereNotNull('published_at'))
             ->orderBy('name')
             ->get(['id', 'name', 'slug', 'description']);
     }
@@ -225,7 +237,7 @@ class DiscoveryController extends Controller
     {
         return User::query()
             ->whereNotNull('profile_slug')
-            ->whereHas('articles', fn ($query) => $query->where('status', ArticleStatus::Published->value)->whereNotNull('published_at'))
+            ->whereHas('articles', fn ($query) => $query->publiclyVisible()->whereNotNull('published_at'))
             ->get(['id', 'profile_slug']);
     }
 

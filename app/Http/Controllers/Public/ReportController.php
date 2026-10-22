@@ -13,6 +13,8 @@ class ReportController extends Controller
 {
     public function storeArticle(Request $request, Article $article): RedirectResponse
     {
+        abort_unless($article->isPubliclyVisible(), 404);
+
         $validated = $request->validate([
             'reason' => ['required', 'string', 'max:120'],
             'note' => ['nullable', 'string', 'max:1000'],
@@ -32,7 +34,7 @@ class ReportController extends Controller
 
     public function storeComment(Request $request, Article $article, Comment $comment): RedirectResponse
     {
-        abort_unless($comment->article_id === $article->id, 404);
+        abort_unless($article->isPubliclyVisible() && $comment->article_id === $article->id, 404);
 
         $validated = $request->validate([
             'reason' => ['required', 'string', 'max:120'],

@@ -8,7 +8,27 @@ const props = defineProps({
     filters: Object,
     categories: Array,
     stats: Object,
+    abilities: {
+        type: Object,
+        default: () => ({}),
+    },
 });
+
+const deleteArticle = (article) => {
+    if (!window.confirm(`Hapus "${article.title}"? Artikel hilang dari situs dan dari daftar ini, dan tidak bisa dipulihkan dari aplikasi.`)) {
+        return;
+    }
+
+    router.delete(route('author.articles.destroy', article.id), { preserveScroll: true });
+};
+
+const republishArticle = (article) => {
+    if (!window.confirm(`Tayangkan lagi "${article.title}"? Artikel kembali terlihat oleh pembaca.`)) {
+        return;
+    }
+
+    router.patch(route('author.articles.republish', article.id), {}, { preserveScroll: true });
+};
 
 const filterForm = useForm({
     q: props.filters?.q ?? '',
@@ -89,6 +109,7 @@ const statusClass = (status) => ({
                         <option value="scheduled">scheduled</option>
                         <option value="published">published</option>
                         <option value="rejected">rejected</option>
+                        <option value="archived">archived</option>
                     </select>
                     <select v-model="filterForm.editorial_status" class="rounded-md border-gray-300">
                         <option value="">Semua editorial</option>
@@ -119,6 +140,7 @@ const statusClass = (status) => ({
                                 <div class="flex flex-wrap items-center gap-2">
                                     <span :class="statusClass(article.status)" class="rounded px-2 py-0.5 text-xs font-semibold">{{ article.status }}</span>
                                     <span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{{ article.editorial_status }}</span>
+                                    <span v-if="article.is_hidden_by_moderator" class="rounded bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-800">disembunyikan moderator</span>
                                     <span class="rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">{{ article.category?.name || 'Tanpa kategori' }}</span>
                                 </div>
 
@@ -146,12 +168,28 @@ const statusClass = (status) => ({
                                     Edit
                                 </Link>
                                 <Link
-                                    v-if="article.status === 'published'"
+                                    v-if="article.is_publicly_visible"
                                     :href="route('articles.show', article.slug)"
                                     class="rounded border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
                                 >
                                     Lihat Publik
                                 </Link>
+                                <button
+                                    v-if="abilities.republish && article.is_hidden_by_moderator && article.published_at"
+                                    type="button"
+                                    class="rounded border border-emerald-300 px-3 py-2 text-sm font-medium text-emerald-700 hover:bg-emerald-50"
+                                    @click="republishArticle(article)"
+                                >
+                                    Tayangkan Lagi
+                                </button>
+                                <button
+                                    v-if="abilities.delete"
+                                    type="button"
+                                    class="rounded border border-rose-300 px-3 py-2 text-sm font-medium text-rose-700 hover:bg-rose-50"
+                                    @click="deleteArticle(article)"
+                                >
+                                    Hapus
+                                </button>
                                 <span class="rounded border border-gray-200 px-3 py-2 text-xs text-gray-500">
                                     Update {{ article.updated_at }}
                                 </span>

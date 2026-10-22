@@ -21,7 +21,7 @@ class ArticleSearchService
 
         $query = Article::query()
             ->with(['author:id,name,profile_slug', 'category:id,name,slug', 'tags:id,name,slug'])
-            ->where('status', 'published')
+            ->publiclyVisible()
             ->whereNotNull('published_at');
 
         if ($q !== '') {

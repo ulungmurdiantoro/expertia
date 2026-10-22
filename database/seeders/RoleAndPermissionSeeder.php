@@ -22,6 +22,7 @@ class RoleAndPermissionSeeder extends Seeder
         'articles.submit',
         'articles.review',
         'articles.publish',
+        'articles.delete',
         'comments.moderate',
         'reports.handle',
         'reports.subject_action.basic',

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Public;
 
-use App\Enums\ArticleStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ArticleCardResource;
 use App\Models\Article;
@@ -23,7 +22,7 @@ class HomeController extends Controller
         if (Schema::hasTable('articles') && Schema::hasTable('categories')) {
             $articles = Article::query()
                 ->with(['author:id,name,profile_slug', 'category:id,name,slug', 'tags:id,name,slug'])
-                ->where('status', ArticleStatus::Published->value)
+                ->publiclyVisible()
                 ->whereNotNull('published_at')
                 ->latest('published_at')
                 ->limit(8)
@@ -33,7 +32,7 @@ class HomeController extends Controller
                 ->where('is_active', true)
                 ->withCount([
                     'articles as published_articles_count' => fn ($query) => $query
-                        ->where('status', ArticleStatus::Published->value)
+                        ->publiclyVisible()
                         ->whereNotNull('published_at'),
                 ])
                 ->pluck('published_articles_count', 'slug');

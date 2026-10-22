@@ -42,6 +42,10 @@ const reactionForm = useForm({
     type: 'like',
 });
 
+const bookmarkForm = useForm({
+    article_id: props.article.id,
+});
+
 const approvalForm = useForm({});
 const reviewForm = useForm({
     note: '',
@@ -219,6 +223,25 @@ const toggleReaction = (type) => {
     }
 
     react(type);
+};
+
+const toggleBookmark = () => {
+    const options = {
+        preserveScroll: true,
+        onSuccess: (page) => {
+            toolsNotice.value = flashFrom(page, props.viewer?.bookmarked ? 'Artikel disimpan.' : 'Bookmark dihapus.');
+        },
+        onError: (errors) => {
+            toolsNotice.value = errorFrom(errors);
+        },
+    };
+
+    if (props.viewer?.bookmarked) {
+        bookmarkForm.delete(route('me.bookmarks.destroy', props.article.slug), options);
+        return;
+    }
+
+    bookmarkForm.post(route('me.bookmarks.store'), options);
 };
 
 // Endpoint share mengembalikan JSON (bukan halaman Inertia) dan terbuka untuk tamu,
@@ -431,6 +454,19 @@ const requestRevision = () => {
                             Bagikan
                         </button>
                         <template v-if="viewer.is_authenticated">
+                            <button
+                                type="button"
+                                class="chip"
+                                :class="{ 'is-active': viewer.bookmarked }"
+                                :aria-pressed="viewer.bookmarked"
+                                :disabled="bookmarkForm.processing"
+                                @click="toggleBookmark"
+                            >
+                                <svg width="15" height="15" viewBox="0 0 24 24" :fill="viewer.bookmarked ? 'currentColor' : 'none'" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+                                    <path d="M6 3h12v18l-6-4.5L6 21z" />
+                                </svg>
+                                {{ viewer.bookmarked ? 'Tersimpan' : 'Simpan' }}
+                            </button>
                             <button
                                 v-for="reaction in reactionTypes"
                                 :key="reaction.type"

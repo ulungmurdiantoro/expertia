@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Public;
 
-use App\Enums\ArticleStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ArticleCardResource;
 use App\Http\Resources\ArticleDetailResource;
@@ -117,7 +116,7 @@ class ArticleController extends Controller
 
         $articles = Article::query()
             ->with(['author:id,name,profile_slug', 'category:id,name,slug', 'tags:id,name,slug'])
-            ->where('status', 'published')
+            ->publiclyVisible()
             ->where(function ($query) use ($recommendedIds, $followedAuthorIds): void {
                 $query->whereIn('id', $recommendedIds)
                     ->orWhereIn('user_id', $followedAuthorIds);
@@ -161,9 +160,9 @@ class ArticleController extends Controller
 
     public function show(Request $request, Article $article, ArticleCommentThread $commentThread): Response
     {
-        abort_unless($article->isPublished(), 404);
+        abort_unless($article->isPubliclyVisible(), 404);
 
-        $article->load(['author:id,name,profile_slug,bio,avatar', 'category:id,name,slug', 'tags:id,name,slug']);
+        $article->load(['author:id,name,profile_slug,bio,avatar','category:id,name,slug', 'tags:id,name,slug']);
         $this->trackViewAfterResponse($request, $article);
 
         $viewer = $request->user();
@@ -191,6 +190,7 @@ class ArticleController extends Controller
             'viewer' => [
                 'is_authenticated' => (bool) $viewer,
                 'reaction' => $viewerReaction,
+                'bookmarked' => $viewer ? $article->bookmarks()->where('user_id', $viewer->id)->exists() : false,
             ],
             'meta' => $this->articleMeta($article),
         ]);
@@ -245,7 +245,7 @@ class ArticleController extends Controller
     {
         return Article::query()
             ->with(['author:id,name,profile_slug', 'category:id,name,slug', 'tags:id,name,slug'])
-            ->where('status', ArticleStatus::Published->value)
+            ->publiclyVisible()
             ->whereNotNull('published_at')
             ->whereKeyNot($article->id)
             ->orderByRaw('CASE WHEN category_id = ? THEN 0 ELSE 1 END', [$article->category_id])

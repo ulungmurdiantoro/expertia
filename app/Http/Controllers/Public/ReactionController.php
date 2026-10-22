@@ -18,7 +18,7 @@ class ReactionController extends Controller
         EventTrackingService $eventTrackingService,
         ArticleScoringService $articleScoringService
     ): RedirectResponse {
-        abort_unless($article->isPublished(), 404);
+        abort_unless($article->isPubliclyVisible(), 404);
 
         $validated = $request->validate([
             'type' => ['required', 'in:like,love,insightful,celebrate'],
@@ -53,7 +53,7 @@ class ReactionController extends Controller
         EventTrackingService $eventTrackingService,
         ArticleScoringService $articleScoringService
     ): RedirectResponse {
-        abort_unless($article->isPublished(), 404);
+        abort_unless($article->isPubliclyVisible(), 404);
 
         $request->validate([
             'type' => ['nullable', 'in:like,love,insightful,celebrate'],

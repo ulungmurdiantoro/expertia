@@ -6,6 +6,7 @@ use App\Enums\ArticleStatus;
 use App\Enums\EditorialStatus;
 use App\Models\Concerns\HasPublicId;
 use App\Support\ArticleHtmlSanitizer;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,6 +19,15 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Article extends Model
 {
     use HasFactory, HasPublicId, SoftDeletes;
+
+    public const VISIBILITY_PUBLIC = 'public';
+
+    /** Disembunyikan moderator: status tetap, tetapi tidak tampil di mana pun untuk publik. */
+    public const VISIBILITY_PRIVATE = 'private';
+
+    protected $attributes = [
+        'visibility' => self::VISIBILITY_PUBLIC,
+    ];
 
     protected $fillable = [
         'public_id',
@@ -124,6 +134,23 @@ class Article extends Model
     public function isPublished(): bool
     {
         return $this->hasStatus(ArticleStatus::Published);
+    }
+
+    /**
+     * Boleh dilihat dan diinteraksikan publik: sudah terbit dan tidak disembunyikan moderator.
+     */
+    public function isPubliclyVisible(): bool
+    {
+        return $this->isPublished() && $this->visibility === self::VISIBILITY_PUBLIC;
+    }
+
+    /**
+     * Padanan isPubliclyVisible() untuk query: halaman, daftar, sitemap, RSS, llms.txt.
+     */
+    public function scopePubliclyVisible(Builder $query): void
+    {
+        $query->where('status', ArticleStatus::Published->value)
+            ->where('visibility', self::VISIBILITY_PUBLIC);
     }
 
     /**

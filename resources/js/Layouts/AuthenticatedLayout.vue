@@ -18,6 +18,8 @@ const openGroups = ref({
 
 const hasRole = (role) => (page.props.auth.roles || []).includes(role);
 const hasAnyRole = (roles) => roles.some((role) => hasRole(role));
+// Menu admin mengikuti permission yang sama dengan middleware route-nya, supaya tidak ada menu yang berujung 403.
+const can = (permission) => (page.props.auth.permissions || []).includes(permission);
 const moderation = page.props.moderation || {};
 const unreadNotifications = computed(() => Number(page.props.notifications?.unread_count || 0));
 const avatarUrl = computed(() => page.props.auth.user?.avatar_url || null);
@@ -132,6 +134,15 @@ const navItems = computed(() => [
                 href: route('admin.dashboard'),
                 active: isActive('admin.dashboard'),
                 icon: 'fa-solid fa-chart-line',
+                visible: can('analytics.view.admin'),
+                badge: null,
+            },
+            {
+                label: 'Pengguna',
+                href: route('admin.users.index'),
+                active: isActive('admin.users.*'),
+                icon: 'fa-solid fa-users',
+                visible: can('users.assign_role'),
                 badge: null,
             },
             {
@@ -139,6 +150,7 @@ const navItems = computed(() => [
                 href: route('admin.contributors.create'),
                 active: isActive('admin.contributors.*'),
                 icon: 'fa-solid fa-user-plus',
+                visible: can('users.assign_role'),
                 badge: null,
             },
             {
@@ -146,6 +158,7 @@ const navItems = computed(() => [
                 href: route('admin.audit-logs.index'),
                 active: isActive('admin.audit-logs.*'),
                 icon: 'fa-solid fa-clipboard-list',
+                visible: can('system.audit_logs.view'),
                 badge: null,
             },
             {
@@ -153,6 +166,7 @@ const navItems = computed(() => [
                 href: route('admin.roles.index'),
                 active: isActive('admin.roles.*'),
                 icon: 'fa-solid fa-user-shield',
+                visible: can('system.roles.manage'),
                 badge: null,
             },
         ],

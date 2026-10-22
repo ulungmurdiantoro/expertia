@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers\Author;
 
+use App\Enums\ArticleStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\Public\DiscoveryController;
 use App\Http\Requests\StoreArticleRequest;
 use App\Http\Requests\UpdateArticleRequest;
+use App\Models\ActivityLog;
 use App\Models\Article;
 use App\Models\ArticleReview;
 use App\Models\Category;
@@ -17,6 +20,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -57,6 +61,8 @@ class ArticleController extends Controller
                 'excerpt' => $article->excerpt,
                 'status' => $article->status,
                 'editorial_status' => $article->editorial_status,
+                'is_publicly_visible' => $article->isPubliclyVisible(),
+                'is_hidden_by_moderator' => $article->visibility === Article::VISIBILITY_PRIVATE,
                 'submitted_at' => optional($article->submitted_at)?->toDateTimeString(),
                 'published_at' => optional($article->published_at)?->toDateTimeString(),
                 'scheduled_at' => optional($article->scheduled_at)?->toDateTimeString(),
@@ -82,6 +88,10 @@ class ArticleController extends Controller
         return Inertia::render('Author/Articles/Index', [
             'articles' => $articles,
             'filters' => $filters,
+            'abilities' => [
+                'delete' => $user->can('articles.delete'),
+                'republish' => $user->can('reports.subject_action.archive'),
+            ],
             'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'stats' => [
                 'total' => (clone $statsQuery)->count(),
@@ -198,14 +208,80 @@ class ArticleController extends Controller
         return back()->with('success', 'Artikel dikirim untuk review editor.');
     }
 
+    /**
+     * Soft delete: artikel hilang dari situs dan dari daftar ini, tetapi barisnya tetap
+     * di database sehingga pengembang masih bisa memulihkannya bila keliru.
+     */
+    public function destroy(Request $request, Article $article): RedirectResponse
+    {
+        $wasPubliclyVisible = $article->isPubliclyVisible();
+
+        $article->delete();
+        $this->logArticleAction($request, $article, 'article.deleted', [
+            'title' => $article->title,
+            'slug' => $article->slug,
+            'status' => $article->status,
+            'author_id' => $article->user_id,
+        ]);
+
+        if ($wasPubliclyVisible) {
+            DiscoveryController::forgetCache();
+        }
+
+        return redirect()
+            ->route('author.articles.index')
+            ->with('success', "Artikel \"{$article->title}\" dihapus.");
+    }
+
+    /**
+     * Membatalkan hide_article / archive_article dari moderasi laporan.
+     */
+    public function republish(Request $request, Article $article): RedirectResponse
+    {
+        $isTakenDown = $article->visibility === Article::VISIBILITY_PRIVATE || $article->hasStatus(ArticleStatus::Archived);
+
+        if (! $isTakenDown || $article->published_at === null) {
+            throw ValidationException::withMessages([
+                'status' => 'Hanya artikel yang pernah tayang lalu diturunkan moderasi yang bisa ditayangkan lagi.',
+            ]);
+        }
+
+        $previous = ['status' => $article->status, 'visibility' => $article->visibility];
+
+        $article->update([
+            'status' => ArticleStatus::Published->value,
+            'visibility' => Article::VISIBILITY_PUBLIC,
+        ]);
+        $this->logArticleAction($request, $article, 'article.republished', ['from' => $previous]);
+        DiscoveryController::forgetCache();
+
+        return back()->with('success', "Artikel \"{$article->title}\" tayang kembali.");
+    }
+
+    /**
+     * @param  array<string, mixed>  $meta
+     */
+    private function logArticleAction(Request $request, Article $article, string $action, array $meta): void
+    {
+        ActivityLog::create([
+            'user_id' => $request->user()->id,
+            'action' => $action,
+            'subject_type' => Article::class,
+            'subject_id' => $article->id,
+            'meta_json' => $meta,
+            'created_at' => now(),
+        ]);
+    }
+
     private function makeUniqueSlug(string $title, ?int $ignoreId = null): string
     {
         $base = Str::slug($title);
         $slug = $base;
         $counter = 1;
 
+        // withTrashed: kolom slug unik di database, termasuk untuk artikel yang sudah dihapus.
         while (
-            Article::query()
+            Article::withTrashed()
                 ->when($ignoreId, fn ($q) => $q->where('id', '!=', $ignoreId))
                 ->where('slug', $slug)
                 ->exists()

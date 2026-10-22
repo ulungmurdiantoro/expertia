@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Public;
 
-use App\Enums\ArticleStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ArticleCardResource;
 use App\Models\Article;
@@ -22,7 +21,7 @@ class AuthorProfileController extends Controller
 
         $articles = $author->articles()
             ->with(['category:id,name,slug', 'tags:id,name,slug'])
-            ->where('status', ArticleStatus::Published->value)
+            ->publiclyVisible()
             ->latest('published_at')
             ->paginate(10)
             ->through(fn (Article $article) => ArticleCardResource::make($article)->resolve($request));

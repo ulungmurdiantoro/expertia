@@ -21,7 +21,7 @@ class CommentController extends Controller
         ArticleScoringService $articleScoringService
     ): RedirectResponse
     {
-        abort_unless($article->isPublished(), 404);
+        abort_unless($article->isPubliclyVisible(), 404);
 
         $validated = $request->validate([
             'content' => ['required', 'string', 'max:2000'],
