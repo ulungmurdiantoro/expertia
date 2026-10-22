@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Support\PageMeta;
+use App\Support\StructuredData;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -24,6 +25,7 @@ class PageController extends Controller
             'Public/Pages/About',
             'Tentang Expertia — Expertia.id',
             'Expertia menjembatani dunia akademik, profesional, industri, dan kebijakan publik melalui publikasi kepakaran yang kredibel dan relevan.',
+            'AboutPage',
         );
     }
 
@@ -51,13 +53,21 @@ class PageController extends Controller
             'Public/Pages/Contact',
             'Kontak — Expertia.id',
             'Hubungi redaksi Expertia.id untuk program kontributor, koreksi, dan kerja sama: WhatsApp 0811399534 (Kurniawan Eka).',
+            'ContactPage',
         );
     }
 
-    private function render(string $component, string $title, string $description): Response
+    private function render(string $component, string $title, string $description, string $schemaType = 'WebPage'): Response
     {
         return Inertia::render($component, [
-            'meta' => PageMeta::make($title, $description),
+            'meta' => PageMeta::make(
+                $title,
+                $description,
+                jsonLd: [
+                    StructuredData::webPage($schemaType, $title, $description),
+                    StructuredData::organization(),
+                ],
+            ),
         ]);
     }
 }

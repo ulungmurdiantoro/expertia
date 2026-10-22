@@ -13,6 +13,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Public\ArticleController as PublicArticleController;
 use App\Http\Controllers\Public\AuthorProfileController;
 use App\Http\Controllers\Public\CommentController;
+use App\Http\Controllers\Public\DiscoveryController;
 use App\Http\Controllers\Public\HomeController;
 use App\Http\Controllers\Public\PageController;
 use App\Http\Controllers\Public\ReactionController;
@@ -30,8 +31,19 @@ Route::get('/kebijakan-editorial', [PageController::class, 'editorialPolicy'])->
 Route::get('/kebijakan-privasi', [PageController::class, 'privacyPolicy'])->name('kebijakan.privasi');
 Route::get('/kontak', [PageController::class, 'contact'])->name('kontak');
 
+// Untuk mesin pencari dan AI (lihat DiscoveryController).
+Route::get('/robots.txt', [DiscoveryController::class, 'robots'])->name('robots');
+Route::get('/sitemap.xml', [DiscoveryController::class, 'sitemap'])->name('sitemap');
+Route::get('/feed.xml', [DiscoveryController::class, 'feed'])->name('feed');
+Route::get('/llms.txt', [DiscoveryController::class, 'llms'])->name('llms');
+Route::get('/llms-full.txt', [DiscoveryController::class, 'llmsFull'])->name('llms.full');
+
 Route::get('/articles', [PublicArticleController::class, 'index'])->name('articles.index');
 Route::get('/trending', [PublicArticleController::class, 'trending'])->name('articles.trending');
+// Harus sebelum route articles.show agar ".md" tidak terbaca sebagai bagian slug.
+Route::get('/articles/{article:slug}.md', [DiscoveryController::class, 'articleMarkdown'])
+    ->where('article', '[A-Za-z0-9-]+')
+    ->name('articles.markdown');
 Route::get('/articles/{article:slug}', [PublicArticleController::class, 'show'])->name('articles.show');
 Route::get('/authors/{author:profile_slug}', [AuthorProfileController::class, 'show'])->name('authors.show');
 // Publik agar tombol Bagikan juga tercatat untuk pengunjung yang belum masuk.

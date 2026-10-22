@@ -9,6 +9,7 @@ use App\Models\Article;
 use App\Models\ArticleReview;
 use App\Models\Category;
 use App\Services\ArticleWorkflow;
+use App\Support\ImageOptimizer;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -113,7 +114,7 @@ class ArticleController extends Controller
         $thumbnail = $request->file('thumbnail');
 
         if ($thumbnail instanceof UploadedFile) {
-            $payload['thumbnail'] = $thumbnail->store('articles/thumbnails', 'public');
+            $payload['thumbnail'] = app(ImageOptimizer::class)->store($thumbnail, 'articles/thumbnails', ImageOptimizer::ARTICLE_THUMBNAIL_WIDTH);
         }
 
         $article = Article::create([
@@ -173,7 +174,7 @@ class ArticleController extends Controller
                 Storage::disk('public')->delete($article->thumbnail);
             }
 
-            $payload['thumbnail'] = $thumbnail->store('articles/thumbnails', 'public');
+            $payload['thumbnail'] = app(ImageOptimizer::class)->store($thumbnail, 'articles/thumbnails', ImageOptimizer::ARTICLE_THUMBNAIL_WIDTH);
         } else {
             unset($payload['thumbnail']);
         }

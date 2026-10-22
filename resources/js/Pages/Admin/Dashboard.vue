@@ -8,6 +8,10 @@ const props = defineProps({
         type: Object,
         default: () => ({ healthy: true, last_run_at: null }),
     },
+    ssr: {
+        type: Object,
+        default: () => ({ enabled: true, bundle: true, healthy: true }),
+    },
     metrics: Object,
     queues: Object,
     articleStatus: Object,
@@ -54,6 +58,16 @@ const objectEntries = (value) => Object.entries(value || {});
                         Pasang cron di server: <code class="rounded bg-white px-1">* * * * * cd /path/ke/aplikasi &amp;&amp; php artisan schedule:run</code>.
                         <span v-if="scheduler.last_run_at">Terakhir berjalan: {{ new Date(scheduler.last_run_at).toLocaleString('id-ID') }}.</span>
                         <span v-else>Belum pernah tercatat berjalan.</span>
+                    </p>
+                </div>
+
+                <div v-if="ssr.enabled && !ssr.healthy" class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    <p class="font-semibold">Render server (SSR) tidak berjalan</p>
+                    <p class="mt-1">
+                        Situs tetap tampil, tetapi isi halaman tidak ada di HTML awal sehingga sulit dibaca mesin pencari dan
+                        crawler AI.
+                        <template v-if="!ssr.bundle">Bundle SSR belum ada; jalankan <code class="rounded bg-white px-1">npm run build</code>.</template>
+                        <template v-else>Jalankan service-nya: <code class="rounded bg-white px-1">sudo systemctl restart expertia-ssr</code> (lihat README).</template>
                     </p>
                 </div>
 

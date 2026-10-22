@@ -8,6 +8,7 @@ use App\Models\Report;
 use App\Models\UserNotification;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
+use Tighten\Ziggy\Ziggy;
 
 class HandleInertiaRequests extends Middleware
 {
@@ -38,6 +39,12 @@ class HandleInertiaRequests extends Middleware
 
         return [
             ...parent::share($request),
+            // Dibutuhkan route() saat SSR (resources/js/ssr.js). SSR hanya terjadi pada
+            // muatan halaman pertama, jadi navigasi Inertia berikutnya tidak membawanya.
+            'ziggy' => fn () => $request->header('X-Inertia') ? null : [
+                ...(new Ziggy)->toArray(),
+                'location' => $request->url(),
+            ],
             'auth' => [
                 'user' => $user,
                 'roles' => $user?->getRoleNames()->values() ?? [],

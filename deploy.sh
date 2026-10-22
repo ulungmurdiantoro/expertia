@@ -17,7 +17,8 @@
 # (chmod) diabaikan.
 #
 # Variabel lain: APP_DIR (default folder script ini), BRANCH (default main),
-# KEEP_BACKUPS (default 10), FPM_SERVICE (default php8.3-fpm).
+# KEEP_BACKUPS (default 10), FPM_SERVICE (default php8.3-fpm),
+# SSR_SERVICE (default expertia-ssr; lihat deploy/expertia-ssr.service).
 #
 # Situs masuk mode maintenance sejak `git merge` sampai `php artisan up`
 # (biasanya 1-3 menit, terutama untuk build aset).
@@ -32,6 +33,7 @@ FORCE="${FORCE:-0}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 RELOAD_FPM="${RELOAD_FPM:-0}"
 FPM_SERVICE="${FPM_SERVICE:-php8.3-fpm}"
+SSR_SERVICE="${SSR_SERVICE:-expertia-ssr}"
 MIN_PHP="8.2.0"
 MIN_NODE="20.19.0"
 
@@ -237,6 +239,7 @@ unpark_sqlite_database() {
 frontend_changed() {
     [[ "$FORCE" == "1" ]] && return 0
     [[ -f "$APP_DIR/public/build/manifest.json" ]] || return 0
+    [[ -f "$APP_DIR/bootstrap/ssr/ssr.js" ]] || return 0
     ! git diff --quiet "$PREVIOUS_COMMIT" HEAD -- "${FRONTEND_PATHS[@]}"
 }
 
@@ -273,6 +276,12 @@ if [[ "$SKIP_BUILD" != "1" ]]; then
     php -r "exit(version_compare('$node_version', '$MIN_NODE', '>=') ? 0 : 1);" \
         || fail "Butuh Node.js >= $MIN_NODE untuk build aset (terpasang ${node_version:-tidak ada}). Di Debian: sudo apt install nodejs npm"
     ok "Node.js $node_version"
+fi
+
+if php -r 'exit(extension_loaded("gd") ? 0 : 1);'; then
+    ok "Ekstensi GD terpasang (gambar unggahan diperkecil ke WebP)"
+else
+    warn "Ekstensi GD belum terpasang: gambar unggahan disimpan apa adanya (bisa berukuran MB). Pasang: sudo apt install php8.3-gd && sudo systemctl reload $FPM_SERVICE"
 fi
 
 [[ -f .env ]] || fail "File .env tidak ada."
@@ -432,6 +441,18 @@ run php artisan config:cache
 run php artisan route:cache
 run php artisan view:cache
 run php artisan event:cache
+# nginx standar Laravel melayani /robots.txt sebagai file statis.
+run php artisan expertia:robots
+
+info "Render server (SSR)"
+if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet "$SSR_SERVICE"; then
+    # systemd menyalakan ulang (Restart=always) dengan bundle yang baru di-build.
+    run php artisan inertia:stop-ssr --graceful
+    ok "$SSR_SERVICE dimuat ulang dengan bundle baru"
+else
+    warn "Service $SSR_SERVICE belum berjalan: halaman publik dirender di browser saja (kurang terbaca mesin pencari dan AI)."
+    warn "Pasang sekali: sudo cp $APP_DIR/deploy/expertia-ssr.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now $SSR_SERVICE"
+fi
 
 if [[ "$RELOAD_FPM" == "1" ]]; then
     info "Reload $FPM_SERVICE (mengosongkan OPcache)"
@@ -455,6 +476,17 @@ if [[ "$DRY_RUN" != "1" ]]; then
             ok "Health check $app_url/up berhasil"
         else
             warn "Health check $app_url/up gagal. Buka situs di browser dan cek storage/logs/laravel.log."
+        fi
+
+        # Halaman publik harus sudah berisi judul (<h1>) di HTML awal bila SSR berjalan.
+        if systemctl is-active --quiet "$SSR_SERVICE" 2>/dev/null; then
+            sleep 3
+            homepage="$(curl -fsS --max-time 15 "$app_url/" 2>/dev/null || true)"
+            if [[ "$homepage" == *"<h1"* ]]; then
+                ok "SSR aktif: beranda berisi konten di HTML awal"
+            else
+                warn "SSR berjalan tetapi beranda belum berisi konten. Cek: php artisan inertia:check-ssr dan journalctl -u $SSR_SERVICE"
+            fi
         fi
     fi
 fi

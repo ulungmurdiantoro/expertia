@@ -1,12 +1,16 @@
 <script setup>
 import PublicLayout from '@/Layouts/PublicLayout.vue';
-import { contact, formatDate, readingMinutes } from '@/site';
+import { articleKicker, contact, formatDate, readingMinutes, SITE_TIME_ZONE } from '@/site';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
     article: Object,
     comments: Array,
+    related: {
+        type: Array,
+        default: () => [],
+    },
     viewer: Object,
     meta: {
         type: Object,
@@ -44,10 +48,10 @@ const reviewForm = useForm({
 });
 
 const reactionTypes = [
-    { type: 'like', label: 'Suka', icon: 'fa-solid fa-thumbs-up' },
-    { type: 'love', label: 'Menyentuh', icon: 'fa-solid fa-heart' },
-    { type: 'insightful', label: 'Mencerahkan', icon: 'fa-solid fa-lightbulb' },
-    { type: 'celebrate', label: 'Apresiasi', icon: 'fa-solid fa-hands-clapping' },
+    { type: 'like', label: 'Suka' },
+    { type: 'love', label: 'Menyentuh' },
+    { type: 'insightful', label: 'Mencerahkan' },
+    { type: 'celebrate', label: 'Apresiasi' },
 ];
 
 const activeReplyId = ref(null);
@@ -106,6 +110,7 @@ const formatDateTime = (value) => {
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
+        timeZone: SITE_TIME_ZONE,
     }).format(date);
 };
 
@@ -398,7 +403,7 @@ const requestRevision = () => {
 
             <figure v-if="article.thumbnail_url" class="article-cover wrap" style="max-width: 1000px">
                 <div class="cover">
-                    <img :src="article.thumbnail_url" :alt="article.thumbnail_alt || ''" @error="hideImage" />
+                    <img :src="article.thumbnail_url" :alt="article.thumbnail_alt || ''" fetchpriority="high" decoding="async" @error="hideImage" />
                 </div>
                 <figcaption v-if="article.thumbnail_source">{{ article.thumbnail_source }}</figcaption>
             </figure>
@@ -419,7 +424,10 @@ const requestRevision = () => {
 
                     <div v-if="!article.is_preview" class="article-tools">
                         <button type="button" class="chip" :disabled="isSharing" @click="shareArticle">
-                            <i class="fa-solid fa-share-nodes" aria-hidden="true"></i>
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                                <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                                <path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4" />
+                            </svg>
                             Bagikan
                         </button>
                         <template v-if="viewer.is_authenticated">
@@ -433,7 +441,6 @@ const requestRevision = () => {
                                 :disabled="reactionForm.processing"
                                 @click="toggleReaction(reaction.type)"
                             >
-                                <i :class="reaction.icon" aria-hidden="true"></i>
                                 {{ reaction.label }}
                                 <span v-if="article.reactions?.[reaction.type]">{{ article.reactions[reaction.type] }}</span>
                             </button>
@@ -461,6 +468,34 @@ const requestRevision = () => {
                 </div>
             </div>
         </article>
+
+        <section v-if="related.length && !article.is_preview" class="related" aria-labelledby="terkait-h">
+            <div class="wrap">
+                <hr class="rule" style="margin-bottom: 40px" />
+                <h2 id="terkait-h" class="h2">Baca juga</h2>
+                <div class="latest-grid">
+                    <article v-for="story in related" :key="story.id" class="side-card">
+                        <Link
+                            v-if="story.thumbnail_url"
+                            :href="route('articles.show', story.slug)"
+                            tabindex="-1"
+                            aria-hidden="true"
+                        >
+                            <div class="cover light">
+                                <img :src="story.thumbnail_url" alt="" loading="lazy" decoding="async" @error="hideImage" />
+                            </div>
+                        </Link>
+                        <p class="eyebrow card-meta">{{ articleKicker(story) }}</p>
+                        <h3>
+                            <Link :href="route('articles.show', story.slug)">{{ story.title }}</Link>
+                        </h3>
+                        <p class="byline">
+                            <strong>{{ story.author?.name || 'Redaksi Expertia' }}</strong> · {{ formatDate(story.published_at) }}
+                        </p>
+                    </article>
+                </div>
+            </div>
+        </section>
 
         <section v-if="!article.is_preview" class="comments" aria-labelledby="komentar-h">
             <div class="wrap narrow">

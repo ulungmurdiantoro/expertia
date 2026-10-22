@@ -3,11 +3,14 @@
 namespace App\Providers;
 
 use App\Support\ArticleHtmlSanitizer;
+use App\Support\PublicPagesSsrGateway;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Inertia\Ssr\Gateway;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -17,6 +20,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(ArticleHtmlSanitizer::class);
+        $this->app->singleton(Gateway::class, PublicPagesSsrGateway::class);
     }
 
     /**
@@ -27,6 +31,21 @@ class AppServiceProvider extends ServiceProvider
         Vite::prefetch(concurrency: 3);
 
         $this->configureRateLimiting();
+        $this->configureCanonicalUrls();
+    }
+
+    /**
+     * Semua URL buatan aplikasi (canonical, sitemap, RSS, JSON-LD) memakai APP_URL,
+     * bukan host atau skema dari request (www, http di belakang proxy).
+     */
+    private function configureCanonicalUrls(): void
+    {
+        $appUrl = (string) config('app.url');
+
+        if ($this->app->isProduction() && str_starts_with($appUrl, 'https://')) {
+            URL::forceRootUrl($appUrl);
+            URL::forceScheme('https');
+        }
     }
 
     /**

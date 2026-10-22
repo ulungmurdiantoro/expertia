@@ -8,6 +8,7 @@ use App\Http\Resources\ArticleCardResource;
 use App\Models\Article;
 use App\Models\User;
 use App\Support\PageMeta;
+use App\Support\StructuredData;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -26,6 +27,12 @@ class AuthorProfileController extends Controller
             ->paginate(10)
             ->through(fn (Article $article) => ArticleCardResource::make($article)->resolve($request));
 
+        $expertise = collect($author->expertise_areas ?? [])
+            ->map(fn ($area) => trim((string) preg_replace('/^Other:\s*/i', '', (string) $area)))
+            ->filter()
+            ->values()
+            ->all();
+
         // Hanya data profil publik; email dan nomor WhatsApp tidak pernah dikirim ke halaman publik.
         return Inertia::render('Public/Authors/Show', [
             'author' => [
@@ -38,10 +45,7 @@ class AuthorProfileController extends Controller
                 'avatar_url' => $author->avatar_url,
                 'institution' => $author->institution,
                 'position' => $author->position,
-                'expertise_areas' => collect($author->expertise_areas ?? [])
-                    ->map(fn ($area) => trim((string) preg_replace('/^Other:\s*/i', '', (string) $area)))
-                    ->filter()
-                    ->values(),
+                'expertise_areas' => $expertise,
                 'followers_count' => $author->followers_count,
             ],
             'articles' => $articles,
@@ -56,6 +60,9 @@ class AuthorProfileController extends Controller
                 route('authors.show', $author->profile_slug),
                 $author->avatar_url,
                 'profile',
+                // Akun tanpa karya terbit (mis. pembaca) tidak perlu diindeks.
+                robots: $articles->total() > 0 ? PageMeta::ROBOTS_INDEX : PageMeta::ROBOTS_NOINDEX,
+                jsonLd: [StructuredData::profilePage($author, $expertise)],
             ),
         ]);
     }

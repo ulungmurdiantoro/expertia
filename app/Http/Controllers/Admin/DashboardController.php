@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\Comment;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\PublicPagesSsrGateway;
 use App\Support\SchedulerHeartbeat;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -24,6 +25,7 @@ class DashboardController extends Controller
                 'healthy' => SchedulerHeartbeat::isHealthy(),
                 'last_run_at' => SchedulerHeartbeat::lastBeat()?->toIso8601String(),
             ],
+            'ssr' => app(PublicPagesSsrGateway::class)->status(),
             'metrics' => [
                 'total_users' => User::count(),
                 'active_authors' => User::role('author')->where('status', 'active')->count(),

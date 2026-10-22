@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Public;
 
+use App\Enums\ArticleStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\ArticleCardResource;
 use App\Http\Resources\ArticleDetailResource;
@@ -14,6 +15,7 @@ use App\Services\ArticleSearchService;
 use App\Services\EventTrackingService;
 use App\Support\BotDetector;
 use App\Support\PageMeta;
+use App\Support\StructuredData;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -53,7 +55,16 @@ class ArticleController extends Controller
             'meta' => PageMeta::make(
                 "{$title} — Expertia.id",
                 $subtitle,
-                route('articles.index', $category ? ['category' => $category->slug] : []),
+                // Halaman ke-2 dst. punya canonical sendiri agar artikel di dalamnya tetap ditemukan.
+                route('articles.index', array_filter([
+                    'category' => $category?->slug,
+                    'page' => $articles->currentPage() > 1 ? $articles->currentPage() : null,
+                ])),
+                // Hasil pencarian dan variasi urutan hanyalah salinan daftar yang sama.
+                robots: $filters['q'] !== '' || $filters['tag'] !== '' || ! in_array($filters['sort'], ['', 'latest'], true)
+                    ? PageMeta::ROBOTS_NOINDEX
+                    : PageMeta::ROBOTS_INDEX,
+                jsonLd: [StructuredData::webPage('CollectionPage', $title, $subtitle)],
             ),
         ]);
     }
@@ -140,7 +151,11 @@ class ArticleController extends Controller
                 'highlight' => 'Untuk Anda',
                 'mode' => 'feed',
             ],
-            'meta' => PageMeta::make('Feed Personal — Expertia.id', 'Artikel dari penulis yang Anda ikuti dan rekomendasi untuk Anda.'),
+            'meta' => PageMeta::make(
+                'Feed Personal — Expertia.id',
+                'Artikel dari penulis yang Anda ikuti dan rekomendasi untuk Anda.',
+                robots: 'noindex, nofollow',
+            ),
         ]);
     }
 
@@ -172,18 +187,73 @@ class ArticleController extends Controller
                 'can_report' => $viewer ? $viewer->id !== $article->user_id : false,
             ],
             'comments' => $commentThread->forArticle($article, $viewer),
+            'related' => $this->relatedArticles($request, $article),
             'viewer' => [
                 'is_authenticated' => (bool) $viewer,
                 'reaction' => $viewerReaction,
             ],
-            'meta' => PageMeta::make(
-                ($article->meta_title ?: $article->title).' — Expertia.id',
-                $article->meta_description ?: ($article->excerpt ?: (string) $article->content),
-                $article->canonical_url ?: route('articles.show', $article->slug),
-                $article->thumbnail ? Storage::url($article->thumbnail) : null,
-                'article',
-            ),
+            'meta' => $this->articleMeta($article),
         ]);
+    }
+
+    /**
+     * Meta, JSON-LD (Article + BreadcrumbList), dan tautan versi Markdown untuk AI.
+     *
+     * @return array<string, mixed>
+     */
+    private function articleMeta(Article $article): array
+    {
+        $url = route('articles.show', $article->slug);
+        $breadcrumbs = [['name' => 'Beranda', 'url' => url('/')]];
+        if ($article->category) {
+            $breadcrumbs[] = [
+                'name' => $article->category->name,
+                'url' => route('articles.index', ['category' => $article->category->slug]),
+            ];
+        }
+        $breadcrumbs[] = ['name' => $article->title, 'url' => $url];
+
+        return PageMeta::make(
+            ($article->meta_title ?: $article->title).' — Expertia.id',
+            $article->meta_description ?: ($article->excerpt ?: (string) $article->content),
+            $article->canonical_url ?: $url,
+            $article->thumbnail ? Storage::url($article->thumbnail) : null,
+            'article',
+            article: [
+                'published_time' => $article->published_at?->toIso8601String(),
+                'modified_time' => $article->updated_at?->toIso8601String(),
+                'section' => $article->category?->name,
+                'author' => $article->author?->profile_slug ? route('authors.show', $article->author->profile_slug) : null,
+                'tags' => $article->tags->pluck('name')->all(),
+            ],
+            jsonLd: [StructuredData::article($article), StructuredData::breadcrumbs($breadcrumbs)],
+            alternates: [[
+                'type' => 'text/markdown',
+                'href' => route('articles.markdown', $article->slug),
+                'title' => 'Versi Markdown',
+            ]],
+        );
+    }
+
+    /**
+     * Tiga artikel terbit lain, rubrik yang sama didahulukan: tautan internal untuk
+     * pembaca dan crawler.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function relatedArticles(Request $request, Article $article): array
+    {
+        return Article::query()
+            ->with(['author:id,name,profile_slug', 'category:id,name,slug', 'tags:id,name,slug'])
+            ->where('status', ArticleStatus::Published->value)
+            ->whereNotNull('published_at')
+            ->whereKeyNot($article->id)
+            ->orderByRaw('CASE WHEN category_id = ? THEN 0 ELSE 1 END', [$article->category_id])
+            ->latest('published_at')
+            ->limit(3)
+            ->get()
+            ->map(fn (Article $related) => ArticleCardResource::make($related)->resolve($request))
+            ->all();
     }
 
     private function categoryOptions(): Collection

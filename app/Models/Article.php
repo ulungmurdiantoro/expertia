@@ -61,6 +61,47 @@ class Article extends Model
     }
 
     /**
+     * Kolom statistik. Perubahannya bukan perubahan isi, jadi tidak boleh menggeser
+     * updated_at yang dipakai sebagai dateModified (JSON-LD), lastmod (sitemap), dan
+     * article:modified_time; tanpa ini setiap kunjungan membuat artikel tampak baru diubah.
+     */
+    public const STATISTIC_COLUMNS = [
+        'view_count',
+        'like_count',
+        'comment_count',
+        'bookmark_count',
+        'share_count',
+        'score_hotness',
+        'score_trending',
+    ];
+
+    /**
+     * save() dan update() yang hanya mengubah kolom statistik tidak menyentuh updated_at.
+     */
+    public function save(array $options = [])
+    {
+        $dirty = $this->exists ? array_keys($this->getDirty()) : [];
+
+        if ($dirty !== [] && array_diff($dirty, self::STATISTIC_COLUMNS) === []) {
+            return static::withoutTimestamps(fn () => parent::save($options));
+        }
+
+        return parent::save($options);
+    }
+
+    /**
+     * increment()/decrement() pada kolom statistik tidak menyentuh updated_at.
+     */
+    protected function incrementOrDecrement($column, $amount, $extra, $method)
+    {
+        if ($this->exists && $extra === [] && in_array($column, self::STATISTIC_COLUMNS, true)) {
+            return static::withoutTimestamps(fn () => parent::incrementOrDecrement($column, $amount, $extra, $method));
+        }
+
+        return parent::incrementOrDecrement($column, $amount, $extra, $method);
+    }
+
+    /**
      * Isi artikel selalu disaring saat disimpan, dari jalur mana pun (controller, seeder, tinker).
      */
     protected function content(): Attribute

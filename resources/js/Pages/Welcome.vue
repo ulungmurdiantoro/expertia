@@ -75,7 +75,8 @@ const hideImage = (event) => {
                             aria-hidden="true"
                         >
                             <div class="cover">
-                                <img :src="featured.thumbnail_url" alt="" loading="lazy" @error="hideImage" />
+                                <!-- Gambar terbesar di atas lipatan (LCP): dimuat lebih dulu, tidak lazy. -->
+                                <img :src="featured.thumbnail_url" alt="" fetchpriority="high" decoding="async" @error="hideImage" />
                             </div>
                         </Link>
                         <p class="eyebrow card-meta">{{ articleKicker(featured) }}</p>

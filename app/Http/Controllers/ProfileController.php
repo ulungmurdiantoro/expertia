@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Support\ImageOptimizer;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -46,7 +47,7 @@ class ProfileController extends Controller
                 Storage::disk('public')->delete($user->avatar);
             }
 
-            $user->avatar = $request->file('avatar')->store('avatars', 'public');
+            $user->avatar = app(ImageOptimizer::class)->store($request->file('avatar'), 'avatars', ImageOptimizer::AVATAR_WIDTH);
         }
 
         if ($user->isDirty('email')) {

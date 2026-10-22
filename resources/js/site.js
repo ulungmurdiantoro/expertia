@@ -34,7 +34,12 @@ export const rubrics = [
     },
 ];
 
-// Tanggal dari server berformat "Y-m-d H:i:s"; Safari butuh "T" agar bisa diparse.
+// Zona waktu tetap: halaman dirender di server (UTC) lalu di browser pembaca; tanpa
+// zona yang sama, tanggal artikel yang terbit dekat tengah malam bisa berbeda.
+export const SITE_TIME_ZONE = 'Asia/Jakarta';
+
+// Tanggal dari server berformat ISO 8601 (atau "Y-m-d H:i:s" pada data lama;
+// Safari butuh "T" agar bisa diparse).
 export const formatDate = (value) => {
     if (!value) {
         return '';
@@ -50,6 +55,7 @@ export const formatDate = (value) => {
         day: 'numeric',
         month: 'long',
         year: 'numeric',
+        timeZone: SITE_TIME_ZONE,
     }).format(date);
 };
 

@@ -27,3 +27,8 @@ Thumbs.db
 /expertia
 /expertia-journal
 *.sqlite-journal
+
+# Hasil build SSR (npm run build)
+/bootstrap/ssr
+# Ditulis deploy.sh (php artisan expertia:robots)
+/public/robots.txt

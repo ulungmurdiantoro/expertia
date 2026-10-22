@@ -1,0 +1,33 @@
+# Render server (Inertia SSR) untuk halaman publik Expertia.id.
+#
+# Pasang sekali di server:
+#   sudo cp deploy/expertia-ssr.service /etc/systemd/system/expertia-ssr.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now expertia-ssr
+#
+# deploy.sh memuat ulang bundle baru dengan `php artisan inertia:stop-ssr`;
+# systemd lalu menyalakannya kembali (Restart=always).
+
+[Unit]
+Description=Expertia.id Inertia SSR
+After=network.target
+
+[Service]
+User=PadmaForClient
+Group=www-data
+WorkingDirectory=/var/www/expertia.id
+ExecStart=/usr/bin/php artisan inertia:start-ssr
+Restart=always
+RestartSec=3
+Environment=NODE_ENV=production
+
+# Server SSR Inertia mendengarkan di semua antarmuka (port 13714) dan punya endpoint
+# /shutdown. Batasi lalu lintasnya ke localhost saja, terlepas dari aturan firewall.
+IPAddressDeny=any
+IPAddressAllow=localhost
+
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

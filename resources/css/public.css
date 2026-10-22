@@ -233,6 +233,9 @@
 .xp .field:focus { border-color: var(--purple); outline: none; box-shadow: 0 0 0 1px var(--purple); }
 .xp textarea.field { min-height: 0; line-height: 1.55; }
 .xp .field-error { margin: 6px 0 0; font-size: 14px; color: #9F1D3A; }
+.xp .related { padding-block: 16px 40px; }
+.xp .related .latest-grid { margin-top: 24px; }
+.xp .related .side-card h3 { font-size: 21px; }
 .xp .comments { padding-block: 16px 72px; }
 .xp .comments .h2 { margin-bottom: 20px; }
 .xp .comment-form { display: grid; gap: 12px; margin-bottom: 28px; }

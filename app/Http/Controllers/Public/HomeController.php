@@ -8,6 +8,7 @@ use App\Http\Resources\ArticleCardResource;
 use App\Models\Article;
 use App\Models\Category;
 use App\Support\PageMeta;
+use App\Support\StructuredData;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -50,8 +51,9 @@ class HomeController extends Controller
             'rubricCounts' => $rubricCounts,
             'meta' => PageMeta::make(
                 'Expertia.id — Media Kepakaran Indonesia',
-                'Riset, paten, inovasi, dan perspektif para pakar Indonesia, disajikan dengan jelas untuk masyarakat, industri, dan pengambil keputusan.',
+                config('expertia.description'),
                 url('/'),
+                jsonLd: [StructuredData::organization(), StructuredData::website()],
             ),
         ]);
     }
