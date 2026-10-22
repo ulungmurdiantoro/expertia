@@ -11,6 +11,8 @@ use App\Models\Comment;
 use App\Models\TrackingEvent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -83,8 +85,8 @@ class InsightController extends Controller
 
         $dailyViews = ArticleView::query()
             ->whereIn('article_id', $articleIds)
-            ->where('viewed_at', '>=', now()->subDays($days))
-            ->selectRaw("DATE(viewed_at) as day, COUNT(*) as total")
+            ->where('viewed_at', '>=', $this->seriesStart($days))
+            ->selectRaw($this->localDay('viewed_at').' as day, COUNT(*) as total')
             ->groupBy('day')
             ->orderBy('day')
             ->get()
@@ -100,8 +102,8 @@ class InsightController extends Controller
                 'article.reaction.added',
                 'comment.created',
             ])
-            ->where('occurred_at', '>=', now()->subDays($days))
-            ->selectRaw("DATE(occurred_at) as day, COUNT(*) as total")
+            ->where('occurred_at', '>=', $this->seriesStart($days))
+            ->selectRaw($this->localDay('occurred_at').' as day, COUNT(*) as total')
             ->groupBy('day')
             ->orderBy('day')
             ->get()
@@ -148,8 +150,8 @@ class InsightController extends Controller
 
         $views = ArticleView::query()
             ->whereIn('article_id', $articleIds)
-            ->where('viewed_at', '>=', now()->subDays($days))
-            ->selectRaw("DATE(viewed_at) as day, COUNT(*) as total")
+            ->where('viewed_at', '>=', $this->seriesStart($days))
+            ->selectRaw($this->localDay('viewed_at').' as day, COUNT(*) as total')
             ->groupBy('day')
             ->pluck('total', 'day')
             ->all();
@@ -157,8 +159,8 @@ class InsightController extends Controller
         $interactions = TrackingEvent::query()
             ->whereIn('article_id', $articleIds)
             ->whereIn('event_type', ['article.bookmark', 'article.reaction.added', 'comment.created'])
-            ->where('occurred_at', '>=', now()->subDays($days))
-            ->selectRaw("DATE(occurred_at) as day, COUNT(*) as total")
+            ->where('occurred_at', '>=', $this->seriesStart($days))
+            ->selectRaw($this->localDay('occurred_at').' as day, COUNT(*) as total')
             ->groupBy('day')
             ->pluck('total', 'day')
             ->all();
@@ -211,7 +213,7 @@ class InsightController extends Controller
 
         $viewsInRange = ArticleView::query()
             ->whereIn('article_id', $articleIds)
-            ->where('viewed_at', '>=', now()->subDays($days))
+            ->where('viewed_at', '>=', $this->seriesStart($days))
             ->selectRaw('article_id, COUNT(*) as total')
             ->groupBy('article_id')
             ->pluck('total', 'article_id');
@@ -219,7 +221,7 @@ class InsightController extends Controller
         $interactionsInRange = TrackingEvent::query()
             ->whereIn('article_id', $articleIds)
             ->whereIn('event_type', ['article.bookmark', 'article.reaction.added', 'comment.created'])
-            ->where('occurred_at', '>=', now()->subDays($days))
+            ->where('occurred_at', '>=', $this->seriesStart($days))
             ->selectRaw('article_id, COUNT(*) as total')
             ->groupBy('article_id')
             ->pluck('total', 'article_id');
@@ -290,7 +292,7 @@ class InsightController extends Controller
     {
         $series = [];
         for ($offset = $days - 1; $offset >= 0; $offset--) {
-            $day = now()->subDays($offset)->toDateString();
+            $day = now(config('expertia.timezone'))->subDays($offset)->toDateString();
             $series[] = [
                 'day' => $day,
                 'total' => (int) ($totalsByDate[$day] ?? 0),
@@ -298,6 +300,30 @@ class InsightController extends Controller
         }
 
         return $series;
+    }
+
+    /**
+     * Awal hari pertama deret, dalam zona waktu redaksi (config expertia.timezone).
+     */
+    private function seriesStart(int $days): Carbon
+    {
+        return now(config('expertia.timezone'))->startOfDay()->subDays($days - 1)->utc();
+    }
+
+    /**
+     * Ekspresi SQL tanggal lokal dari kolom UTC, agar kunjungan pukul 00.00-07.00 WIB
+     * tidak tercatat di hari sebelumnya. Indonesia tidak memakai DST, jadi offset tetap.
+     */
+    private function localDay(string $column): string
+    {
+        $minutes = now(config('expertia.timezone'))->utcOffset();
+
+        return match (DB::connection()->getDriverName()) {
+            'mysql', 'mariadb' => "DATE(DATE_ADD({$column}, INTERVAL {$minutes} MINUTE))",
+            'pgsql' => "DATE({$column} + INTERVAL '{$minutes} minutes')",
+            'sqlsrv' => "CAST(DATEADD(minute, {$minutes}, {$column}) AS date)",
+            default => sprintf("DATE(%s, '%+d minutes')", $column, $minutes),
+        };
     }
 
     private function articleBaseQuery(int $userId, ?int $categoryId = null): Builder

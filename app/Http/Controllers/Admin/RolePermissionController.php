@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Permission;
@@ -64,6 +65,14 @@ class RolePermissionController extends Controller
             'permissions' => ['required', 'array'],
             'permissions.*' => ['string', 'exists:permissions,name'],
         ]);
+
+        // Tanpa ini Super Admin bisa mengunci semua orang dari halaman ini; pemulihannya
+        // hanya lewat seeder di server.
+        if ($role->name === 'super-admin' && ! in_array('system.roles.manage', $validated['permissions'], true)) {
+            throw ValidationException::withMessages([
+                'permissions' => 'Permission system.roles.manage tidak boleh dicabut dari Super Admin.',
+            ]);
+        }
 
         $role->syncPermissions($validated['permissions']);
         app()[PermissionRegistrar::class]->forgetCachedPermissions();

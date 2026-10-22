@@ -22,6 +22,13 @@ return [
     ],
 
     /*
+    | Database dan app.timezone memakai UTC. Zona ini untuk teks yang dibaca orang
+    | (notifikasi) dan pengelompokan per hari di Insights; sama dengan SITE_TIME_ZONE
+    | di resources/js/site.js.
+    */
+    'timezone' => 'Asia/Jakarta',
+
+    /*
     |--------------------------------------------------------------------------
     | Crawler AI
     |--------------------------------------------------------------------------

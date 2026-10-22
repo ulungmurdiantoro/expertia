@@ -26,6 +26,7 @@ class ProfileController extends Controller
         return Inertia::render('Profile/Edit', [
             'mustVerifyEmail' => $user instanceof MustVerifyEmail,
             'status' => session('status'),
+            'canDeleteAccount' => $user->canDeleteOwnAccount(),
             // Hanya akun yang bisa menulis yang punya profil kontributor untuk dilengkapi.
             'contributorProfile' => $user->can('articles.create') ? [
                 'position' => $user->position,
@@ -73,6 +74,8 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        abort_unless($request->user()->canDeleteOwnAccount(), 403);
+
         $request->validate([
             'password' => ['required', 'current_password'],
         ]);

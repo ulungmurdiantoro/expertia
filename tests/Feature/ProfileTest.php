@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\Article;
+use App\Models\ArticleReview;
 use App\Models\User;
 use Database\Seeders\RoleAndPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -203,6 +205,60 @@ class ProfileTest extends TestCase
 
         $this->assertGuest();
         $this->assertNull($user->fresh());
+    }
+
+    public function test_contributor_cannot_delete_own_account_and_lose_published_articles(): void
+    {
+        $this->seed(RoleAndPermissionSeeder::class);
+        $author = User::factory()->create();
+        $author->assignRole('author');
+        $article = Article::factory()->published()->for($author, 'author')->create();
+
+        $this->actingAs($author)
+            ->get('/profile')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('canDeleteAccount', false));
+
+        $this->actingAs($author)
+            ->delete('/profile', ['password' => 'password123'])
+            ->assertForbidden();
+
+        $this->assertNotNull($author->fresh());
+        $this->assertNotNull($article->fresh());
+    }
+
+    public function test_reader_who_became_staff_keeps_review_history(): void
+    {
+        $this->seed(RoleAndPermissionSeeder::class);
+        // Bekas editor yang sudah diturunkan jadi pembaca: riwayat review-nya tetap terhubung.
+        $formerEditor = User::factory()->create();
+        $formerEditor->assignRole('user');
+        ArticleReview::create([
+            'article_id' => Article::factory()->published()->create()->id,
+            'editor_id' => $formerEditor->id,
+            'action' => 'approve',
+            'reviewed_at' => now(),
+        ]);
+
+        $this->actingAs($formerEditor)
+            ->delete('/profile', ['password' => 'password123'])
+            ->assertForbidden();
+    }
+
+    public function test_reader_can_still_delete_own_account(): void
+    {
+        $this->seed(RoleAndPermissionSeeder::class);
+        $reader = User::factory()->create();
+        $reader->assignRole('user');
+
+        $this->actingAs($reader)
+            ->get('/profile')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('canDeleteAccount', true));
+
+        $this->actingAs($reader)
+            ->delete('/profile', ['password' => 'password123'])
+            ->assertRedirect('/');
+
+        $this->assertNull($reader->fresh());
     }
 
     public function test_correct_password_must_be_provided_to_delete_account(): void

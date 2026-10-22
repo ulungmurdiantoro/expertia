@@ -9,6 +9,16 @@ const props = defineProps({
     categories: Array,
 });
 
+// Server mengirim jadwal sebagai ISO 8601; input datetime-local butuh waktu lokal browser.
+const toLocalDateTimeInput = (iso) => {
+    if (!iso) return '';
+
+    const date = new Date(iso);
+    const pad = (value) => String(value).padStart(2, '0');
+
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 const form = useForm({
     title: props.article.title ?? '',
     excerpt: props.article.excerpt ?? '',
@@ -20,8 +30,8 @@ const form = useForm({
     thumbnail_source: props.article.thumbnail_source ?? '',
     meta_title: props.article.meta_title ?? '',
     meta_description: props.article.meta_description ?? '',
-    scheduled_at: props.article.scheduled_at ?? '',
-    scheduled_timezone: props.article.scheduled_timezone ?? (Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'),
+    scheduled_at: toLocalDateTimeInput(props.article.scheduled_at),
+    scheduled_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
 });
 
 const contentWordCount = computed(() => {

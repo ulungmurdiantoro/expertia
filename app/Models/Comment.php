@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -27,6 +28,18 @@ class Comment extends Model
         return [
             'moderated_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Komentar yang tampil di halaman artikel (lihat ArticleCommentThread): disetujui,
+     * dan bila berupa balasan, induknya komentar tingkat atas yang disetujui dan belum dihapus.
+     */
+    public function scopeVisibleInThread(Builder $query): void
+    {
+        $query->where('status', 'approved')
+            ->where(fn (Builder $inner) => $inner
+                ->whereNull('parent_id')
+                ->orWhereHas('parent', fn (Builder $parent) => $parent->where('status', 'approved')->whereNull('parent_id')));
     }
 
     public function article(): BelongsTo

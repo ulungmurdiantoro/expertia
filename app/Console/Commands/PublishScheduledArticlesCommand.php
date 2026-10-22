@@ -31,9 +31,11 @@ class PublishScheduledArticlesCommand extends Command
     {
         $limit = max(1, min((int) $this->option('limit'), 500));
 
+        // Hanya status Scheduled: artikel yang diarsipkan moderator juga "approved" dan
+        // bukan "published", tetapi tidak boleh tayang lagi lewat jalur ini.
         $articles = Article::query()
             ->where('editorial_status', EditorialStatus::Approved->value)
-            ->where('status', '!=', ArticleStatus::Published->value)
+            ->where('status', ArticleStatus::Scheduled->value)
             ->whereNotNull('scheduled_at')
             ->where('scheduled_at', '<=', now())
             ->oldest('scheduled_at')

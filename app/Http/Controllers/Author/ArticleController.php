@@ -158,10 +158,9 @@ class ArticleController extends Controller
             'meta_title',
             'meta_description',
         ]);
-        $articlePayload['scheduled_at'] = optional($article->scheduled_at)
-            ?->timezone(config('app.timezone'))
-            ?->format('Y-m-d\TH:i');
-        $articlePayload['scheduled_timezone'] = config('app.timezone');
+        // Waktu absolut (ISO 8601); form mengubahnya ke zona waktu browser, sama seperti
+        // form buat naskah, agar jadwal tidak bergeser saat naskah dibuka lalu disimpan.
+        $articlePayload['scheduled_at'] = $article->scheduled_at?->toIso8601String();
         $articlePayload['thumbnail_url'] = $article->thumbnail ? Storage::url($article->thumbnail) : null;
         $articlePayload['can_update'] = $request->user()->can('update', $article);
         $articlePayload['can_submit'] = $request->user()->can('submit', $article);

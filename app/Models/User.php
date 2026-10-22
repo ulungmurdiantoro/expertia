@@ -117,6 +117,18 @@ class User extends Authenticatable
         return $candidate;
     }
 
+    /**
+     * Menghapus user ikut menghapus permanen (cascade) artikel, komentar pembaca di
+     * artikel itu, dan riwayat review. Karena itu hanya akun pembaca tanpa jejak
+     * redaksi yang boleh menghapus dirinya sendiri; lainnya lewat redaksi.
+     */
+    public function canDeleteOwnAccount(): bool
+    {
+        return ! $this->hasAnyRole(['author', 'verified-expert', 'editor', 'moderator', 'admin', 'super-admin'])
+            && ! $this->articles()->withTrashed()->exists()
+            && ! ArticleReview::query()->where('editor_id', $this->id)->exists();
+    }
+
     public function articles(): HasMany
     {
         return $this->hasMany(Article::class);

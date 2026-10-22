@@ -85,7 +85,7 @@ class ArticleWorkflow
             'type' => $isScheduledFuture ? 'article.scheduled' : 'article.approved',
             'title' => $isScheduledFuture ? 'Artikel dijadwalkan tayang' : 'Artikel disetujui',
             'body' => $isScheduledFuture
-                ? "Artikel '{$article->title}' disetujui dan dijadwalkan tayang pada {$article->scheduled_at?->toDateTimeString()}."
+                ? "Artikel '{$article->title}' disetujui dan dijadwalkan tayang pada {$article->scheduled_at?->timezone(config('expertia.timezone'))->format('Y-m-d H:i T')}."
                 : "Artikel '{$article->title}' disetujui dan dipublikasikan.",
             'data_json' => [
                 'article_id' => $article->id,
@@ -162,7 +162,7 @@ class ArticleWorkflow
      */
     public function publishScheduled(Article $article): void
     {
-        if (! $article->hasEditorialStatus(EditorialStatus::Approved) || $article->isPublished()) {
+        if (! $article->hasEditorialStatus(EditorialStatus::Approved) || ! $article->hasStatus(ArticleStatus::Scheduled)) {
             return;
         }
 

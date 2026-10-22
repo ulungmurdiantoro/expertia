@@ -69,6 +69,7 @@ const submit = () => {
                     <p class="text-sm text-gray-600">
                         Total permission terpilih: <strong>{{ form.permissions.length }}</strong>
                     </p>
+                    <p v-if="form.errors.permissions" class="mt-2 text-sm text-rose-600">{{ form.errors.permissions }}</p>
                 </div>
 
                 <div v-for="group in permission_groups" :key="group.label" class="rounded-lg border border-gray-200 bg-white shadow-sm">

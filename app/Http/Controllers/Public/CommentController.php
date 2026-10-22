@@ -30,12 +30,15 @@ class CommentController extends Controller
 
         $parent = null;
         if (!empty($validated['parent_id'])) {
+            // Hanya komentar yang tampil yang bisa dibalas. Thread hanya dua tingkat, jadi
+            // balasan untuk sebuah balasan ditempelkan ke komentar induknya.
             $parent = Comment::query()
                 ->where('id', $validated['parent_id'])
                 ->where('article_id', $article->id)
+                ->visibleInThread()
                 ->firstOrFail();
 
-            $validated['parent_id'] = $parent->id;
+            $validated['parent_id'] = $parent->parent_id ?? $parent->id;
         }
 
         $comment = Comment::create([
@@ -98,11 +101,8 @@ class CommentController extends Controller
         Gate::authorize('delete', $comment);
 
         if (!$comment->trashed()) {
-            $wasApproved = $comment->status === 'approved';
             $comment->delete();
-            if ($wasApproved && $article->comment_count > 0) {
-                $article->decrement('comment_count');
-            }
+            $article->refreshCommentCount();
             $eventTrackingService->track($request, 'comment.deleted', $article, [
                 'comment_id' => $comment->id,
             ]);

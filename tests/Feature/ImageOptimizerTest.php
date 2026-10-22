@@ -67,4 +67,51 @@ class ImageOptimizerTest extends TestCase
         Storage::disk('public')->assertExists('articles/thumbnails/lama.png');
         $this->assertTrue($fresh->updated_at->equalTo($updatedAt), 'mengganti format gambar tidak mengubah tanggal artikel');
     }
+
+    /**
+     * JPEG 2000x1000 dengan kotak merah di kiri atas, plus segmen EXIF berisi tag Orientation.
+     */
+    private function jpegWithOrientation(int $orientation, string $byteOrder = 'MM'): string
+    {
+        $image = imagecreatetruecolor(2000, 1000);
+        imagefill($image, 0, 0, imagecolorallocate($image, 255, 255, 255));
+        imagefilledrectangle($image, 0, 0, 199, 199, imagecolorallocate($image, 255, 0, 0));
+        ob_start();
+        imagejpeg($image, null, 95);
+        $jpeg = (string) ob_get_clean();
+
+        $short = fn (int $value) => pack($byteOrder === 'II' ? 'v' : 'n', $value);
+        $long = fn (int $value) => pack($byteOrder === 'II' ? 'V' : 'N', $value);
+        // Header TIFF, IFD0 berisi satu entri: tag 0x0112 (Orientation), tipe SHORT, 1 nilai.
+        $tiff = $byteOrder.$short(42).$long(8).$short(1)
+            .$short(0x0112).$short(3).$long(1).$short($orientation).$short(0)
+            .$long(0);
+        $segment = "Exif\x00\x00".$tiff;
+
+        return substr($jpeg, 0, 2)."\xFF\xE1".pack('n', strlen($segment) + 2).$segment.substr($jpeg, 2);
+    }
+
+    public function test_reads_exif_orientation_in_both_byte_orders(): void
+    {
+        $this->assertSame(6, ImageOptimizer::jpegOrientation($this->jpegWithOrientation(6, 'MM')));
+        $this->assertSame(8, ImageOptimizer::jpegOrientation($this->jpegWithOrientation(8, 'II')));
+        $this->assertSame(1, ImageOptimizer::jpegOrientation($this->largePng()));
+    }
+
+    public function test_phone_photo_rotation_is_applied_before_exif_is_dropped(): void
+    {
+        // Orientation 6: kamera menyimpan landscape, tampilan yang benar diputar 90° searah jarum jam.
+        $optimized = app(ImageOptimizer::class)->optimize($this->jpegWithOrientation(6), ImageOptimizer::ARTICLE_THUMBNAIL_WIDTH);
+
+        $this->assertNotNull($optimized);
+        $result = imagecreatefromstring($optimized['binary']);
+        $this->assertSame([1000, 2000], [imagesx($result), imagesy($result)]);
+
+        // Kotak merah di kiri atas berpindah ke kanan atas setelah diputar searah jarum jam.
+        $red = fn (int $x, int $y) => (imagecolorat($result, $x, $y) >> 16) & 0xFF;
+        $green = fn (int $x, int $y) => (imagecolorat($result, $x, $y) >> 8) & 0xFF;
+        $this->assertGreaterThan(200, $red(950, 50));
+        $this->assertLessThan(60, $green(950, 50));
+        $this->assertGreaterThan(200, $green(50, 50), 'kiri atas sekarang putih');
+    }
 }

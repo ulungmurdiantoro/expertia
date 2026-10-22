@@ -71,6 +71,12 @@ class ImageOptimizer
 
         imagepalettetotruecolor($image);
 
+        // Hasil encode ulang tidak membawa EXIF, jadi rotasi foto ponsel diterapkan ke pikselnya.
+        $image = $this->applyExifOrientation($image, self::jpegOrientation($binary));
+        if ($image === false) {
+            return null;
+        }
+
         $width = imagesx($image);
         if ($width > $maxWidth) {
             $height = (int) round(imagesy($image) * $maxWidth / $width);
@@ -100,6 +106,85 @@ class ImageOptimizer
         }
 
         return ['binary' => $result, 'extension' => $extension];
+    }
+
+    /**
+     * Nilai tag EXIF Orientation (1-8) dari JPEG, atau 1 bila tidak ada. Dibaca langsung
+     * dari byte agar tidak bergantung pada ekstensi exif.
+     */
+    public static function jpegOrientation(string $binary): int
+    {
+        if (! str_starts_with($binary, "\xFF\xD8")) {
+            return 1;
+        }
+
+        $length = strlen($binary);
+        $offset = 2;
+
+        // Telusuri segmen JPEG sampai APP1 "Exif" atau awal data gambar (SOS).
+        while ($offset + 4 <= $length && $binary[$offset] === "\xFF") {
+            $marker = ord($binary[$offset + 1]);
+            $segmentLength = unpack('n', substr($binary, $offset + 2, 2))[1];
+
+            if ($marker === 0xDA) {
+                return 1;
+            }
+
+            if ($marker === 0xE1 && substr($binary, $offset + 4, 6) === "Exif\x00\x00") {
+                return self::tiffOrientation(substr($binary, $offset + 10, $segmentLength - 8));
+            }
+
+            $offset += 2 + $segmentLength;
+        }
+
+        return 1;
+    }
+
+    private static function tiffOrientation(string $tiff): int
+    {
+        $byteOrder = substr($tiff, 0, 2);
+        if ($byteOrder !== 'II' && $byteOrder !== 'MM') {
+            return 1;
+        }
+
+        $short = fn (int $at): ?int => strlen($tiff) >= $at + 2 ? unpack($byteOrder === 'II' ? 'v' : 'n', substr($tiff, $at, 2))[1] : null;
+        $long = fn (int $at): ?int => strlen($tiff) >= $at + 4 ? unpack($byteOrder === 'II' ? 'V' : 'N', substr($tiff, $at, 4))[1] : null;
+
+        $ifd = $long(4);
+        $entries = $ifd === null ? null : $short($ifd);
+        if ($entries === null) {
+            return 1;
+        }
+
+        for ($i = 0; $i < $entries; $i++) {
+            $entry = $ifd + 2 + ($i * 12);
+            if ($short($entry) === 0x0112) {
+                $value = $short($entry + 8);
+
+                return $value !== null && $value >= 1 && $value <= 8 ? $value : 1;
+            }
+        }
+
+        return 1;
+    }
+
+    /**
+     * @param  \GdImage  $image
+     * @return \GdImage|false
+     */
+    private function applyExifOrientation($image, int $orientation)
+    {
+        // imagerotate() memutar berlawanan arah jarum jam.
+        return match ($orientation) {
+            2 => imageflip($image, IMG_FLIP_HORIZONTAL) ? $image : false,
+            3 => imagerotate($image, 180, 0),
+            4 => imageflip($image, IMG_FLIP_VERTICAL) ? $image : false,
+            5 => imageflip($image, IMG_FLIP_HORIZONTAL) ? imagerotate($image, 90, 0) : false,
+            6 => imagerotate($image, -90, 0),
+            7 => imageflip($image, IMG_FLIP_HORIZONTAL) ? imagerotate($image, -90, 0) : false,
+            8 => imagerotate($image, 90, 0),
+            default => $image,
+        };
     }
 
     /**

@@ -121,6 +121,15 @@ class Article extends Model
         );
     }
 
+    /**
+     * comment_count = jumlah komentar yang benar-benar tampil. Dihitung ulang, bukan
+     * ditambah/dikurangi, karena moderasi atau penghapusan induk ikut menyembunyikan balasannya.
+     */
+    public function refreshCommentCount(): void
+    {
+        $this->update(['comment_count' => $this->comments()->visibleInThread()->count()]);
+    }
+
     public function hasStatus(ArticleStatus ...$statuses): bool
     {
         return in_array($this->status, array_map(fn (ArticleStatus $status) => $status->value, $statuses), true);

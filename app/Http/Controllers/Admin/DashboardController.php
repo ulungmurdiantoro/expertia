@@ -28,7 +28,7 @@ class DashboardController extends Controller
             'ssr' => app(PublicPagesSsrGateway::class)->status(),
             'metrics' => [
                 'total_users' => User::count(),
-                'active_authors' => User::role('author')->where('status', 'active')->count(),
+                'active_authors' => User::role(['author', 'verified-expert'])->where('status', 'active')->count(),
                 'active_editors' => User::role('editor')->where('status', 'active')->count(),
                 'published_articles' => Article::where('status', 'published')->count(),
                 'draft_articles' => Article::where('status', 'draft')->count(),

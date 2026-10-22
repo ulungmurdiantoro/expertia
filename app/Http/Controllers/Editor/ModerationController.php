@@ -386,24 +386,14 @@ class ModerationController extends Controller
 
     private function transitionCommentStatus(Comment $comment, string $next, int $moderatorId): void
     {
-        $previous = $comment->status;
-
         $comment->update([
             'status' => $next,
             'moderated_by' => $moderatorId,
             'moderated_at' => now(),
         ]);
 
-        $article = $comment->article;
-        if ($article) {
-            if ($previous !== 'approved' && $next === 'approved') {
-                $article->increment('comment_count');
-            }
-
-            if ($previous === 'approved' && $next !== 'approved' && $article->comment_count > 0) {
-                $article->decrement('comment_count');
-            }
-        }
+        // Menyembunyikan komentar induk ikut menyembunyikan balasannya, jadi dihitung ulang.
+        $comment->article?->refreshCommentCount();
     }
 
     private function resolveSubjectSummary(Report $report): string
