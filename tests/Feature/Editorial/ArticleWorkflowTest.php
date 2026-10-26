@@ -6,6 +6,7 @@ use App\Models\Article;
 use App\Models\User;
 use Database\Seeders\RoleAndPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class ArticleWorkflowTest extends TestCase
@@ -81,6 +82,21 @@ class ArticleWorkflowTest extends TestCase
         $fresh = $article->fresh();
         $this->assertSame('Wakaf Uang Belum Populer', $fresh->title);
         $this->assertSame('url-yang-sudah-dibagikan', $fresh->slug);
+    }
+
+    public function test_draft_that_fails_validation_returns_readable_errors(): void
+    {
+        $this->actingAs($this->author)
+            ->post(route('author.articles.store'), [
+                'title' => '',
+                'thumbnail' => UploadedFile::fake()->image('foto-ponsel.jpg')->size(3000),
+            ])
+            ->assertSessionHasErrors([
+                'title' => 'Judul artikel wajib diisi.',
+                'thumbnail' => 'Ukuran thumbnail maksimal 2 MB.',
+            ]);
+
+        $this->assertSame(0, Article::count());
     }
 
     public function test_author_can_submit_a_draft_for_review(): void

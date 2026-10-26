@@ -36,4 +36,17 @@ class UpdateArticleRequest extends FormRequest
             'scheduled_timezone' => ['nullable', 'string', 'max:64'],
         ];
     }
+
+    /**
+     * @return array<string, string>
+     */
+    public function messages(): array
+    {
+        return [
+            'title.required' => 'Judul artikel wajib diisi.',
+            'thumbnail.image' => 'Thumbnail harus berupa gambar JPG, PNG, WebP, atau GIF.',
+            'thumbnail.max' => 'Ukuran thumbnail maksimal 2 MB.',
+            'thumbnail.uploaded' => 'Thumbnail gagal diunggah. Pastikan ukurannya maksimal 2 MB.',
+        ];
+    }
 }
