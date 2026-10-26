@@ -179,6 +179,14 @@ class ArticleController extends Controller
         $payload = $this->normalizeSchedulePayload($request->validated());
         $thumbnail = $request->file('thumbnail');
 
+        // Scheduler hanya menayangkan artikel terjadwal yang punya waktu tayang; tanpa ini
+        // artikel macet di status scheduled dan tidak pernah tayang.
+        if ($article->hasStatus(ArticleStatus::Scheduled) && $payload['scheduled_at'] === null) {
+            throw ValidationException::withMessages([
+                'scheduled_at' => 'Artikel ini dijadwalkan tayang otomatis, jadi waktu tayangnya tidak boleh dikosongkan. Untuk menayangkan sekarang, isi dengan waktu saat ini.',
+            ]);
+        }
+
         if ($thumbnail instanceof UploadedFile) {
             if ($article->thumbnail) {
                 Storage::disk('public')->delete($article->thumbnail);
@@ -275,7 +283,9 @@ class ArticleController extends Controller
 
     private function makeUniqueSlug(string $title, ?int $ignoreId = null): string
     {
-        $base = Str::slug($title);
+        // Judul tanpa huruf/angka Latin menghasilkan slug kosong, dan route('articles.show', '')
+        // membuat sitemap, RSS, dan daftar artikel error.
+        $base = Str::slug($title) ?: 'artikel';
         $slug = $base;
         $counter = 1;
 

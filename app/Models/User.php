@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Concerns\HasPublicId;
 use Database\Factories\UserFactory;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Translation\HasLocalePreference;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,7 +15,11 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+/**
+ * Email wajib diverifikasi (MustVerifyEmail) sebelum memakai fitur yang butuh login,
+ * kecuali halaman Profile untuk memperbaiki alamat email.
+ */
+class User extends Authenticatable implements HasLocalePreference, MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasRoles, HasPublicId;
@@ -127,6 +132,25 @@ class User extends Authenticatable
         return ! $this->hasAnyRole(['author', 'verified-expert', 'editor', 'moderator', 'admin', 'super-admin'])
             && ! $this->articles()->withTrashed()->exists()
             && ! ArticleReview::query()->where('editor_id', $this->id)->exists();
+    }
+
+    /**
+     * Email notifikasi (verifikasi dan lainnya) memakai teks bahasa Indonesia dari lang/id.json.
+     */
+    public function preferredLocale(): string
+    {
+        return 'id';
+    }
+
+    /**
+     * Halaman /authors/{slug} dan tombol follow hanya untuk kontributor: akun yang bisa
+     * menulis, atau yang pernah menerbitkan artikel (mis. role-nya sudah diganti).
+     * Pakai withExists('articles as has_public_articles') di daftar agar tidak N+1.
+     */
+    public function hasPublicProfile(): bool
+    {
+        return $this->can('articles.create')
+            || (bool) ($this->has_public_articles ?? $this->articles()->publiclyVisible()->exists());
     }
 
     public function articles(): HasMany

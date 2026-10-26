@@ -130,6 +130,19 @@ class Article extends Model
         $this->update(['comment_count' => $this->comments()->visibleInThread()->count()]);
     }
 
+    /**
+     * Hitung ulang semua counter interaksi, mis. setelah akun pembaca dihapus dan
+     * komentar, bookmark, serta reaksinya ikut terhapus oleh cascade database.
+     */
+    public function refreshInteractionCounts(): void
+    {
+        $this->update([
+            'comment_count' => $this->comments()->visibleInThread()->count(),
+            'bookmark_count' => $this->bookmarks()->count(),
+            'like_count' => $this->reactions()->count(),
+        ]);
+    }
+
     public function hasStatus(ArticleStatus ...$statuses): bool
     {
         return in_array($this->status, array_map(fn (ArticleStatus $status) => $status->value, $statuses), true);

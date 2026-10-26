@@ -48,6 +48,17 @@ class AdminSafeguardsTest extends TestCase
         $this->assertSame(['comments.moderate'], $role->fresh()->permissions->pluck('name')->all());
     }
 
+    public function test_a_role_can_be_emptied(): void
+    {
+        $role = Role::findByName('moderator');
+
+        $this->actingAs($this->superAdmin)
+            ->putJson(route('admin.roles.update', $role), ['permissions' => []])
+            ->assertRedirect(route('admin.roles.index'));
+
+        $this->assertSame(0, $role->fresh()->permissions()->count());
+    }
+
     public function test_dashboard_counts_verified_experts_as_active_authors(): void
     {
         User::factory()->create()->assignRole('author');

@@ -15,6 +15,8 @@ class FollowController extends Controller
     {
         $follower = $request->user();
         abort_if($follower->id === $author->id, 422, 'Tidak dapat follow akun sendiri.');
+        // Hanya kontributor yang bisa diikuti; unfollow tetap terbuka untuk follow lama.
+        abort_unless($author->hasPublicProfile(), 404);
 
         $alreadyFollowing = $follower->follows()->where('author_id', $author->id)->exists();
         if (!$alreadyFollowing) {

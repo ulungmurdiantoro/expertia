@@ -1,12 +1,15 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 
 const props = defineProps({
     reports: Object,
     filters: Object,
 });
+
+// archive_article butuh reports.subject_action.archive (Admin); tanpa itu server menjawab 403.
+const canArchive = (usePage().props.auth.permissions || []).includes('reports.subject_action.archive');
 
 const filterForm = useForm({
     q: props.filters?.q ?? '',
@@ -170,7 +173,7 @@ const submitBulkSubjectAction = () => {
                         <option value="approve_comment">approve_comment</option>
                         <option value="spam_comment">spam_comment</option>
                         <option value="hide_article">hide_article</option>
-                        <option value="archive_article">archive_article</option>
+                        <option v-if="canArchive" value="archive_article">archive_article</option>
                     </select>
                     <button @click="submitBulkSubjectAction" class="rounded bg-rose-600 px-3 py-2 text-sm text-white">
                         Apply Bulk Subject Action

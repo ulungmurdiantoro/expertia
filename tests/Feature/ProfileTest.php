@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Http\Requests\ProfileUpdateRequest;
 use App\Models\Article;
+use App\Models\ArticleReaction;
 use App\Models\ArticleReview;
+use App\Models\Comment;
 use App\Models\User;
 use Database\Seeders\RoleAndPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -259,6 +261,36 @@ class ProfileTest extends TestCase
             ->assertRedirect('/');
 
         $this->assertNull($reader->fresh());
+    }
+
+    public function test_deleting_a_reader_keeps_others_replies_and_recounts_the_article(): void
+    {
+        $this->seed(RoleAndPermissionSeeder::class);
+        $author = User::factory()->create();
+        $author->assignRole('author');
+        $article = Article::factory()->published()->for($author, 'author')->create();
+
+        $reader = User::factory()->create();
+        $reader->assignRole('user');
+        $otherReader = User::factory()->create();
+
+        $comment = Comment::create(['article_id' => $article->id, 'user_id' => $reader->id, 'content' => 'Pertanyaan', 'status' => 'approved']);
+        $reply = Comment::create(['article_id' => $article->id, 'user_id' => $otherReader->id, 'parent_id' => $comment->id, 'content' => 'Jawaban', 'status' => 'approved']);
+        $reader->bookmarks()->create(['article_id' => $article->id]);
+        ArticleReaction::create(['article_id' => $article->id, 'user_id' => $reader->id, 'type' => 'like']);
+        $article->update(['comment_count' => 2, 'bookmark_count' => 1, 'like_count' => 1]);
+
+        $this->actingAs($reader)
+            ->delete('/profile', ['password' => 'password123'])
+            ->assertRedirect('/');
+
+        $this->assertNull($reader->fresh());
+        $this->assertNull($reply->fresh()->parent_id);
+
+        $article->refresh();
+        $this->assertSame(1, $article->comment_count);
+        $this->assertSame(0, $article->bookmark_count);
+        $this->assertSame(0, $article->like_count);
     }
 
     public function test_correct_password_must_be_provided_to_delete_account(): void

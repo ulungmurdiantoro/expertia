@@ -53,11 +53,14 @@ Route::post('/articles/{article:slug}/shares', [ShareController::class, 'store']
 
 Route::get('/dashboard', DashboardController::class)->middleware(['auth', 'verified'])->name('dashboard');
 
+// Tanpa 'verified': akun yang salah mengetik email harus tetap bisa memperbaikinya di sini.
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
 
+Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/me/bookmarks', [BookmarkController::class, 'index'])->name('me.bookmarks.index');
     Route::get('/me/feed', [PublicArticleController::class, 'feed'])->name('me.feed');
     Route::post('/me/bookmarks', [BookmarkController::class, 'store'])->middleware('throttle:interactions')->name('me.bookmarks.store');
@@ -66,6 +69,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/me/notifications', [NotificationController::class, 'index'])->name('me.notifications.index');
     Route::patch('/me/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('me.notifications.read-all');
     Route::patch('/me/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('me.notifications.read');
+    Route::get('/me/notifications/{notification}/open', [NotificationController::class, 'open'])->name('me.notifications.open');
 
     Route::post('/authors/{author:profile_slug}/follow', [FollowController::class, 'store'])->middleware('throttle:interactions')->name('authors.follow');
     Route::delete('/authors/{author:profile_slug}/follow', [FollowController::class, 'destroy'])->name('authors.unfollow');

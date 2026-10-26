@@ -99,6 +99,15 @@ class ArticleWorkflowTest extends TestCase
         $this->assertSame(0, Article::count());
     }
 
+    public function test_title_without_latin_characters_still_gets_a_slug(): void
+    {
+        $this->actingAs($this->author)
+            ->post(route('author.articles.store'), ['title' => '“?!”'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('artikel', Article::query()->sole()->slug);
+    }
+
     public function test_author_can_submit_a_draft_for_review(): void
     {
         $article = Article::factory()->for($this->author, 'author')->create();

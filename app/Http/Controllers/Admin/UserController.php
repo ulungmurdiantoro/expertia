@@ -48,6 +48,7 @@ class UserController extends Controller
         $users = User::query()
             ->with('roles:id,name')
             ->withCount('articles')
+            ->withExists(['articles as has_public_articles' => fn ($query) => $query->publiclyVisible()])
             ->when($filters['q'] !== '', function ($query) use ($filters): void {
                 $query->where(function ($inner) use ($filters): void {
                     $inner->where('name', 'like', "%{$filters['q']}%")
@@ -66,7 +67,9 @@ class UserController extends Controller
                 'roles' => $user->roles->pluck('name')->map(fn (string $role) => $this->roleLabel($role))->values(),
                 'institution' => $user->institution,
                 'articles_count' => $user->articles_count,
-                'profile_url' => $user->profile_slug ? route('authors.show', $user->profile_slug) : null,
+                'profile_url' => $user->profile_slug && $user->hasPublicProfile() ? route('authors.show', $user->profile_slug) : null,
+                // Kontributor yang belum verifikasi email belum bisa membuka dashboard dan menulis.
+                'email_verified' => $user->hasVerifiedEmail(),
                 'created_at' => $user->created_at?->toDateString(),
                 'can_edit' => $this->canManage($actor, $user),
             ]);
@@ -100,7 +103,7 @@ class UserController extends Controller
                 'bio' => $user->bio,
                 'expertise_topics' => $expertise['topics'],
                 'expertise_other' => $expertise['other'],
-                'profile_url' => $user->profile_slug ? route('authors.show', $user->profile_slug) : null,
+                'profile_url' => $user->profile_slug && $user->hasPublicProfile() ? route('authors.show', $user->profile_slug) : null,
             ],
             'roleOptions' => $this->roleOptions($this->assignableRoles($actor)),
             'canChangeRole' => ! $actor->is($user),

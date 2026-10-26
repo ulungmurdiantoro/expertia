@@ -78,15 +78,16 @@ const escapeHtml = (value) => {
 };
 
 const renderedArticleContent = computed(() => {
-    const rawContent = props.article?.content || props.article?.excerpt || '';
+    const content = props.article?.content || '';
 
-    // If content already contains HTML tags from rich text editor, render as-is.
-    if (/<[a-z][\s\S]*>/i.test(rawContent)) {
-        return rawContent;
+    // Hanya content yang disaring server (ArticleHtmlSanitizer) yang boleh dirender sebagai HTML.
+    if (/<[a-z][\s\S]*>/i.test(content)) {
+        return content;
     }
 
-    // Legacy plain text content fallback.
-    return escapeHtml(rawContent).replace(/\n/g, '<br>');
+    // Teks biasa, termasuk excerpt sebagai pengganti content kosong: excerpt tidak disaring
+    // server, jadi tag di dalamnya harus di-escape agar tidak jalan di sesi editor saat preview.
+    return escapeHtml(content || props.article?.excerpt || '').replace(/\n/g, '<br>');
 });
 
 // Sumber tulisan berupa teks biasa; tautan di dalamnya dijadikan link tanpa v-html.
@@ -473,7 +474,7 @@ const requestRevision = () => {
                             </svg>
                             Bagikan
                         </button>
-                        <template v-if="viewer.is_authenticated">
+                        <template v-if="viewer.is_verified">
                             <button
                                 type="button"
                                 class="chip"
@@ -510,6 +511,9 @@ const requestRevision = () => {
                         >
                             Laporkan artikel
                         </button>
+                        <p v-if="viewer.is_authenticated && !viewer.is_verified" class="muted" style="flex-basis: 100%; margin: 4px 0 0">
+                            <Link :href="route('verification.notice')">Verifikasi email Anda</Link> untuk menyimpan artikel dan memberi reaksi.
+                        </p>
                         <p v-if="toolsNotice" class="muted" role="status" style="flex-basis: 100%; margin: 4px 0 0">{{ toolsNotice }}</p>
                     </div>
 
@@ -558,7 +562,7 @@ const requestRevision = () => {
                 <hr class="rule" style="margin-bottom: 40px" />
                 <h2 id="komentar-h" class="h2">Komentar</h2>
 
-                <form v-if="viewer.is_authenticated" class="comment-form" @submit.prevent="submitComment">
+                <form v-if="viewer.is_verified" class="comment-form" @submit.prevent="submitComment">
                     <label class="sr-only" for="comment-content">Tulis komentar</label>
                     <textarea
                         id="comment-content"
@@ -573,6 +577,9 @@ const requestRevision = () => {
                         Kirim komentar
                     </button>
                 </form>
+                <p v-else-if="viewer.is_authenticated" class="muted" style="margin: 0 0 28px">
+                    <Link :href="route('verification.notice')">Verifikasi email Anda</Link> untuk ikut berdiskusi.
+                </p>
                 <p v-else class="muted" style="margin: 0 0 28px">
                     <Link :href="route('login')">Masuk</Link> untuk ikut berdiskusi.
                 </p>

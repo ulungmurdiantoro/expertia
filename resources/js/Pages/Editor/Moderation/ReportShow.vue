@@ -1,10 +1,14 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import InputError from '@/Components/InputError.vue';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 
 const props = defineProps({
     report: Object,
 });
+
+// archive_article butuh reports.subject_action.archive (Admin); tanpa itu server menjawab 403.
+const canArchive = (usePage().props.auth.permissions || []).includes('reports.subject_action.archive');
 
 const statusForm = useForm({
     status: props.report.status ?? 'pending',
@@ -56,9 +60,11 @@ const applyAction = () => {
                         <textarea
                             v-model="statusForm.resolution_note"
                             rows="3"
+                            maxlength="1000"
                             placeholder="Resolution note"
                             class="w-full rounded-md border-gray-300"
                         />
+                        <InputError :message="statusForm.errors.resolution_note || statusForm.errors.status" />
                         <button type="submit" class="rounded bg-indigo-600 px-4 py-2 text-sm text-white">Update status</button>
                     </form>
                 </section>
@@ -81,14 +87,16 @@ const applyAction = () => {
                             <option v-if="report.subject_key === 'comment'" value="approve_comment">approve_comment</option>
                             <option v-if="report.subject_key === 'comment'" value="spam_comment">spam_comment</option>
                             <option v-if="report.subject_key === 'article'" value="hide_article">hide_article</option>
-                            <option v-if="report.subject_key === 'article'" value="archive_article">archive_article</option>
+                            <option v-if="report.subject_key === 'article' && canArchive" value="archive_article">archive_article</option>
                         </select>
                         <textarea
                             v-model="actionForm.resolution_note"
                             rows="3"
+                            maxlength="1000"
                             placeholder="Catatan aksi"
                             class="w-full rounded-md border-gray-300"
                         />
+                        <InputError :message="actionForm.errors.resolution_note || actionForm.errors.action" />
                         <button type="submit" class="rounded bg-rose-600 px-4 py-2 text-sm text-white">Apply action</button>
                     </form>
                 </section>

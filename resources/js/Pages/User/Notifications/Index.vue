@@ -1,6 +1,6 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed } from 'vue';
 
 defineProps({
@@ -56,24 +56,40 @@ const markAsRead = (notificationId) => {
                     >
                         <div class="flex items-start justify-between gap-3">
                             <div>
-                                <p class="font-semibold text-gray-900">{{ notification.title }}</p>
+                                <Link
+                                    v-if="notification.has_link"
+                                    :href="route('me.notifications.open', notification.id)"
+                                    class="font-semibold text-gray-900 hover:text-indigo-700 hover:underline"
+                                >
+                                    {{ notification.title }}
+                                </Link>
+                                <p v-else class="font-semibold text-gray-900">{{ notification.title }}</p>
                                 <p class="mt-1 text-sm text-gray-600">{{ notification.body }}</p>
                                 <p class="mt-2 text-xs text-gray-400">{{ notification.created_at }}</p>
                             </div>
-                            <button
-                                v-if="!notification.read_at"
-                                type="button"
-                                @click="markAsRead(notification.id)"
-                                class="shrink-0 rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 hover:border-indigo-300 hover:text-indigo-700"
-                            >
-                                Sudah dibaca
-                            </button>
-                            <span
-                                v-else
-                                class="shrink-0 rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
-                            >
-                                Dibaca
-                            </span>
+                            <div class="flex shrink-0 items-center gap-2">
+                                <Link
+                                    v-if="notification.has_link"
+                                    :href="route('me.notifications.open', notification.id)"
+                                    class="rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-500"
+                                >
+                                    Buka
+                                </Link>
+                                <button
+                                    v-if="!notification.read_at"
+                                    type="button"
+                                    @click="markAsRead(notification.id)"
+                                    class="rounded-md border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 hover:border-indigo-300 hover:text-indigo-700"
+                                >
+                                    Sudah dibaca
+                                </button>
+                                <span
+                                    v-else
+                                    class="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700"
+                                >
+                                    Dibaca
+                                </span>
+                            </div>
                         </div>
                     </div>
 

@@ -101,7 +101,7 @@ Wajib di server:
   * * * * * cd /path/ke/aplikasi && php artisan schedule:run >> /dev/null 2>&1
   ```
   Dashboard admin menampilkan peringatan merah bila scheduler tidak berjalan lebih dari 10 menit.
-- **`.env` produksi**: `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://expertia.id` (dipakai untuk URL canonical dan og:image), serta konfigurasi email agar reset password berfungsi.
+- **`.env` produksi**: `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://expertia.id` (dipakai untuk URL canonical dan og:image), serta konfigurasi email (`MAIL_MAILER`, `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`). Email wajib: akun baru harus memverifikasi alamat emailnya sebelum bisa berkomentar, menyimpan artikel, mengikuti penulis, atau membuka dashboard, dan reset password juga lewat email. `deploy.sh` menolak deploy bila `MAIL_MAILER` masih `log`/`array` (lewati dengan `ALLOW_NO_MAIL=1`).
 - **Document root** web server diarahkan ke folder `public/`, bukan ke root proyek.
 - Queue worker belum dibutuhkan; belum ada job yang di-queue.
 - **Render server (SSR)**, sekali pasang (`deploy.sh` memuat ulang bundle-nya setiap deploy):

@@ -43,7 +43,8 @@ class RegisteredUserController extends Controller
     {
         $user = $this->createUserWithRole($request, 'user');
 
-        event(new Registered($user));
+        // Bila email gagal terkirim, pengguna tetap masuk dan bisa menekan "Kirim ulang" di halaman verifikasi.
+        $this->dispatchRegistered($user);
 
         Auth::login($user);
 
@@ -63,11 +64,32 @@ class RegisteredUserController extends Controller
 
         $user = $this->createUserWithRole($request, $role);
 
-        event(new Registered($user));
+        if (! $this->dispatchRegistered($user)) {
+            return redirect()
+                ->route('admin.contributors.create')
+                ->with('error', "Akun kontributor {$user->name} dibuat, tetapi email verifikasi gagal dikirim. Minta kontributor masuk lalu menekan \"Kirim ulang email verifikasi\", atau periksa pengaturan email server.");
+        }
 
         return redirect()
             ->route('admin.contributors.create')
-            ->with('success', "Akun kontributor {$user->name} dibuat. Profil publiknya: /authors/{$user->profile_slug}");
+            ->with('success', "Akun kontributor {$user->name} dibuat dan email verifikasi dikirim ke {$user->email}. Kontributor bisa menulis setelah memverifikasi email. Profil publiknya: /authors/{$user->profile_slug}");
+    }
+
+    /**
+     * Event Registered mengirim email verifikasi. Akun sudah tersimpan, jadi kegagalan
+     * kirim email dicatat ke log alih-alih menjadi halaman error.
+     */
+    private function dispatchRegistered(User $user): bool
+    {
+        try {
+            event(new Registered($user));
+
+            return true;
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return false;
+        }
     }
 
     /**

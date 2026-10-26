@@ -16,6 +16,9 @@ class AuthorProfileController extends Controller
 {
     public function show(Request $request, User $author): Response
     {
+        // Akun pembaca tidak punya halaman profil publik.
+        abort_unless($author->hasPublicProfile(), 404);
+
         $author->loadCount('followers');
         $viewer = $request->user();
 

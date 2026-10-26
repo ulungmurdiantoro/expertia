@@ -166,6 +166,8 @@ class ArticleController extends Controller
         $this->trackViewAfterResponse($request, $article);
 
         $viewer = $request->user();
+        // Interaksi (komentar, reaksi, bookmark, lapor) butuh email terverifikasi; lihat routes/web.php.
+        $viewerIsVerified = (bool) $viewer?->hasVerifiedEmail();
         $reactionCounts = $article->reactions()
             ->selectRaw('type, COUNT(*) as total')
             ->groupBy('type')
@@ -183,12 +185,13 @@ class ArticleController extends Controller
                     'insightful' => (int) ($reactionCounts['insightful'] ?? 0),
                     'celebrate' => (int) ($reactionCounts['celebrate'] ?? 0),
                 ],
-                'can_report' => $viewer ? $viewer->id !== $article->user_id : false,
+                'can_report' => $viewerIsVerified && $viewer->id !== $article->user_id,
             ],
-            'comments' => $commentThread->forArticle($article, $viewer),
+            'comments' => $commentThread->forArticle($article, $viewer, interactive: $viewer === null || $viewerIsVerified),
             'related' => $this->relatedArticles($request, $article),
             'viewer' => [
                 'is_authenticated' => (bool) $viewer,
+                'is_verified' => $viewerIsVerified,
                 'reaction' => $viewerReaction,
                 'bookmarked' => $viewer ? $article->bookmarks()->where('user_id', $viewer->id)->exists() : false,
             ],

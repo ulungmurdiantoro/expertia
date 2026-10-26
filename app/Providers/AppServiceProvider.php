@@ -4,8 +4,10 @@ namespace App\Providers;
 
 use App\Support\ArticleHtmlSanitizer;
 use App\Support\PublicPagesSsrGateway;
+use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\Vite;
@@ -32,6 +34,18 @@ class AppServiceProvider extends ServiceProvider
 
         $this->configureRateLimiting();
         $this->configureCanonicalUrls();
+        $this->configureVerificationEmail();
+    }
+
+    private function configureVerificationEmail(): void
+    {
+        VerifyEmail::toMailUsing(fn (object $notifiable, string $url) => (new MailMessage)
+            ->subject('Verifikasi email akun '.config('expertia.name'))
+            ->greeting("Halo {$notifiable->name},")
+            ->line('Klik tombol di bawah untuk memastikan alamat email ini milik Anda. Setelah itu Anda bisa berkomentar, menyimpan artikel, mengikuti penulis, dan memakai dashboard.')
+            ->action('Verifikasi email', $url)
+            ->line('Tautan ini berlaku '.config('auth.verification.expire', 60).' menit. Bila Anda tidak membuat akun di '.config('expertia.name').', abaikan email ini.')
+            ->salutation('Salam, Redaksi '.config('expertia.name')));
     }
 
     /**

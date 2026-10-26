@@ -11,6 +11,7 @@
 #   SKIP_BUILD=1 bash deploy.sh    lewati npm ci && npm run build
 #   RELOAD_FPM=1 bash deploy.sh    reload php-fpm di akhir (butuh sudo)
 #   ALLOW_NON_PRODUCTION=1 ...     izinkan .env non-produksi (server uji/staging)
+#   ALLOW_NO_MAIL=1 ...            izinkan deploy walau MAIL_MAILER belum diatur
 #
 # Deploy dihentikan bila .env belum untuk produksi (APP_ENV, APP_DEBUG, APP_URL)
 # atau ada file yang isinya diubah langsung di server. Perubahan izin file saja
@@ -307,6 +308,22 @@ if [[ ${#env_problems[@]} -gt 0 ]]; then
 else
     ok "APP_ENV=production, APP_DEBUG=false, APP_URL=$(env_get APP_URL)"
 fi
+
+# Email wajib diverifikasi (User implements MustVerifyEmail): tanpa mailer sungguhan,
+# pendaftar baru tidak pernah menerima tautan verifikasi dan tidak bisa berkomentar.
+mailer="$(env_get MAIL_MAILER)"
+if [[ -z "$mailer" || "$mailer" == "log" || "$mailer" == "array" ]]; then
+    warn "MAIL_MAILER=${mailer:-kosong}: email verifikasi dan reset password tidak akan terkirim."
+    if [[ "${ALLOW_NO_MAIL:-0}" != "1" ]]; then
+        fail "Atur MAIL_MAILER (mis. smtp), MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, dan MAIL_FROM_ADDRESS di .env, lalu jalankan ulang.
+       Untuk tetap deploy tanpa email (pendaftar baru tidak bisa memverifikasi akun), jalankan dengan ALLOW_NO_MAIL=1."
+    fi
+    warn "ALLOW_NO_MAIL=1: tetap dilanjutkan."
+else
+    ok "MAIL_MAILER=$mailer"
+fi
+[[ "$(env_get MAIL_FROM_ADDRESS)" != *example.com* ]] || warn "MAIL_FROM_ADDRESS masih $(env_get MAIL_FROM_ADDRESS); ganti dengan alamat redaksi agar email tidak masuk spam."
+[[ "$(env_get APP_NAME)" != "Laravel" ]] || warn "APP_NAME masih Laravel; nama ini tampil sebagai pengirim dan di kaki email. Ubah menjadi APP_NAME=\"Expertia.id\"."
 
 # git merge, composer, dan npm menulis di seluruh folder aplikasi (termasuk vendor
 # dan node_modules); satu folder milik user lain membuat deploy gagal di tengah

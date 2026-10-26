@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\PublicAuthorResource;
 use App\Models\Article;
 use App\Support\SiteTime;
 use Illuminate\Http\RedirectResponse;

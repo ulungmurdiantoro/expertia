@@ -92,13 +92,15 @@ const navItems = computed(() => [
         label: 'Editorial',
         icon: 'fa-solid fa-pen-ruler',
         visible: hasAnyRole(['author', 'verified-expert', 'editor', 'moderator', 'admin', 'super-admin']),
+        // Role = middleware grup route (routes/web.php), permission = middleware `can:` route-nya.
+        // Keduanya dicek agar mencabut permission dari halaman Role & Permission ikut menyembunyikan menunya.
         items: [
             {
                 label: 'Author',
                 href: route('author.articles.index'),
                 active: isActive('author.articles.*'),
                 icon: 'fa-solid fa-pen-nib',
-                visible: hasAnyRole(['author', 'verified-expert', 'editor', 'admin', 'super-admin']),
+                visible: hasAnyRole(['author', 'verified-expert', 'editor', 'admin', 'super-admin']) && can('articles.create'),
                 badge: null,
             },
             {
@@ -106,7 +108,7 @@ const navItems = computed(() => [
                 href: route('author.insights.index'),
                 active: isActive('author.insights.*'),
                 icon: 'fa-solid fa-chart-column',
-                visible: hasAnyRole(['author', 'verified-expert', 'editor', 'admin', 'super-admin']),
+                visible: hasAnyRole(['author', 'verified-expert', 'editor', 'admin', 'super-admin']) && can('analytics.view.author'),
                 badge: null,
             },
             {
@@ -114,20 +116,26 @@ const navItems = computed(() => [
                 href: route('editor.reviews.index'),
                 active: isActive('editor.reviews.*'),
                 icon: 'fa-solid fa-list-check',
-                visible: hasAnyRole(['editor', 'admin', 'super-admin']),
+                visible: hasAnyRole(['editor', 'admin', 'super-admin']) && can('articles.review'),
                 badge: moderation.pending_reviews > 0 ? moderation.pending_reviews : null,
                 badgeClass: 'bg-amber-100 text-amber-700',
             },
             {
-                label: 'Moderasi',
+                label: 'Moderasi Komentar',
                 href: route('editor.moderation.comments.index'),
-                active: isActive('editor.moderation.*'),
+                active: isActive('editor.moderation.comments.*'),
                 icon: 'fa-solid fa-shield-halved',
-                visible: hasAnyRole(['editor', 'moderator', 'admin', 'super-admin']),
-                badge:
-                    moderation.pending_comments > 0 || moderation.pending_reports > 0
-                        ? moderation.pending_comments + moderation.pending_reports
-                        : null,
+                visible: hasAnyRole(['editor', 'moderator', 'admin', 'super-admin']) && can('comments.moderate'),
+                badge: moderation.pending_comments > 0 ? moderation.pending_comments : null,
+                badgeClass: 'bg-rose-100 text-rose-700',
+            },
+            {
+                label: 'Laporan',
+                href: route('editor.moderation.reports.index'),
+                active: isActive('editor.moderation.reports.*'),
+                icon: 'fa-solid fa-flag',
+                visible: hasAnyRole(['editor', 'moderator', 'admin', 'super-admin']) && can('reports.handle'),
+                badge: moderation.pending_reports > 0 ? moderation.pending_reports : null,
                 badgeClass: 'bg-rose-100 text-rose-700',
             },
         ],

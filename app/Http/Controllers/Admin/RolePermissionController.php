@@ -61,8 +61,9 @@ class RolePermissionController extends Controller
 
     public function update(Request $request, Role $role): RedirectResponse
     {
+        // 'present', bukan 'required': role boleh dikosongkan (mis. role yang belum punya fitur).
         $validated = $request->validate([
-            'permissions' => ['required', 'array'],
+            'permissions' => ['present', 'array'],
             'permissions.*' => ['string', 'exists:permissions,name'],
         ]);
 

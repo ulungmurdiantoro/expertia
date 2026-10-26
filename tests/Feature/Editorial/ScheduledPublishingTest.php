@@ -83,6 +83,25 @@ class ScheduledPublishingTest extends TestCase
         $this->assertSame('2026-11-01 02:00:00', $article->fresh()->scheduled_at->toDateTimeString());
     }
 
+    public function test_editor_cannot_clear_the_schedule_of_a_scheduled_article(): void
+    {
+        $editor = User::factory()->create();
+        $editor->assignRole('editor');
+        $scheduledAt = now()->addDay()->startOfMinute();
+        $article = Article::factory()->for($this->author, 'author')->create([
+            'status' => 'scheduled',
+            'editorial_status' => 'approved',
+            'scheduled_at' => $scheduledAt,
+        ]);
+
+        $this->actingAs($editor)->put(route('author.articles.update', $article), [
+            'title' => $article->title,
+            'scheduled_at' => '',
+        ])->assertSessionHasErrors('scheduled_at');
+
+        $this->assertTrue($scheduledAt->equalTo($article->fresh()->scheduled_at));
+    }
+
     public function test_scheduled_approval_notice_shows_local_time(): void
     {
         $editor = User::factory()->create();

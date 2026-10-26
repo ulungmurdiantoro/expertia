@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\Article;
+use App\Models\ArticleReaction;
+use App\Models\Comment;
+use App\Services\ArticleScoringService;
 use App\Support\ImageOptimizer;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
@@ -72,7 +76,7 @@ class ProfileController extends Controller
     /**
      * Delete the user's account.
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request, ArticleScoringService $scoring): RedirectResponse
     {
         abort_unless($request->user()->canDeleteOwnAccount(), 403);
 
@@ -82,12 +86,29 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
+        $affectedArticleIds = $user->comments()->withTrashed()->pluck('article_id')
+            ->merge($user->bookmarks()->pluck('article_id'))
+            ->merge(ArticleReaction::query()->where('user_id', $user->id)->pluck('article_id'))
+            ->unique();
+
+        // Cascade parent_id ikut menghapus balasan orang lain di bawah komentar akun ini.
+        // Balasan di bawah komentar yang tampil dijadikan komentar biasa agar tidak hilang.
+        Comment::query()
+            ->whereIn('parent_id', $user->comments()->where('status', 'approved')->select('id'))
+            ->where('user_id', '!=', $user->id)
+            ->update(['parent_id' => null]);
+
         Auth::logout();
 
         $user->delete();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        Article::query()->whereIn('id', $affectedArticleIds)->get()->each(function (Article $article) use ($scoring): void {
+            $article->refreshInteractionCounts();
+            $scoring->scoreArticle($article);
+        });
 
         return Redirect::to('/');
     }

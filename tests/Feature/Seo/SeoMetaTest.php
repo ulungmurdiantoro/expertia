@@ -6,6 +6,7 @@ use App\Models\Article;
 use App\Models\Category;
 use App\Models\User;
 use App\Support\PublicPagesSsrGateway;
+use Database\Seeders\RoleAndPermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -118,8 +119,11 @@ class SeoMetaTest extends TestCase
         $this->assertSame('Universitas Contoh', $profile['mainEntity']['affiliation']['name']);
         $this->assertSame(['Ekonomi Syariah'], $profile['mainEntity']['knowsAbout']);
 
-        $reader = User::factory()->create(['profile_slug' => 'pembaca-biasa']);
-        $this->get(route('authors.show', $reader->profile_slug))
+        // Kontributor yang belum punya karya terbit: halaman ada, tetapi tidak diindeks.
+        $this->seed(RoleAndPermissionSeeder::class);
+        $newContributor = User::factory()->create(['profile_slug' => 'kontributor-baru']);
+        $newContributor->assignRole('author');
+        $this->get(route('authors.show', $newContributor->profile_slug))
             ->assertSee('<meta name="robots" content="noindex, follow">', false);
     }
 

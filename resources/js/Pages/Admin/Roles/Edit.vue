@@ -46,6 +46,13 @@ const toggleGroup = (group) => {
 };
 
 const submit = () => {
+    if (
+        form.permissions.length === 0
+        && !window.confirm(`Kosongkan semua permission role "${props.role.name}"? Pengguna dengan role ini kehilangan akses ke semua menu redaksi.`)
+    ) {
+        return;
+    }
+
     form.put(route('admin.roles.update', props.role.id));
 };
 </script>

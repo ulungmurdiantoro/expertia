@@ -379,7 +379,7 @@ class ModerationController extends Controller
         );
 
         if (!$applied) {
-            return back()->with('success', 'Aksi tidak cocok dengan tipe konten terlapor.');
+            return back()->with('error', 'Aksi tidak cocok dengan tipe konten terlapor.');
         }
 
         return back()->with('success', 'Aksi moderasi diterapkan dari laporan.');

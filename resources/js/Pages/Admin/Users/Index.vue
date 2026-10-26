@@ -76,6 +76,13 @@ const resetFilters = () => {
                                 <td class="px-4 py-3">
                                     <p class="font-medium text-gray-900">{{ user.name }}</p>
                                     <p class="text-xs text-gray-500">{{ user.email }}</p>
+                                    <p
+                                        v-if="!user.email_verified"
+                                        class="mt-1 inline-block rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-800"
+                                        title="Belum bisa membuka dashboard, menulis, atau berkomentar sampai email diverifikasi."
+                                    >
+                                        Email belum diverifikasi
+                                    </p>
                                 </td>
                                 <td class="px-4 py-3 text-gray-700">{{ user.roles.join(', ') || '-' }}</td>
                                 <td class="px-4 py-3 text-gray-700">{{ user.institution || '-' }}</td>

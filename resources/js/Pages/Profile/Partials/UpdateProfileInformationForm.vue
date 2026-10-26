@@ -235,14 +235,14 @@ onBeforeUnmount(() => {
 
             <div v-if="mustVerifyEmail && user.email_verified_at === null">
                 <p class="mt-2 text-sm text-gray-800">
-                    Your email address is unverified.
+                    Email Anda belum diverifikasi, jadi komentar, bookmark, follow, dan dashboard belum bisa dipakai.
                     <Link
                         :href="route('verification.send')"
                         method="post"
                         as="button"
                         class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                     >
-                        Click here to re-send the verification email.
+                        Kirim ulang email verifikasi.
                     </Link>
                 </p>
 
@@ -250,7 +250,13 @@ onBeforeUnmount(() => {
                     v-show="status === 'verification-link-sent'"
                     class="mt-2 text-sm font-medium text-green-600"
                 >
-                    A new verification link has been sent to your email address.
+                    Tautan verifikasi baru sudah dikirim ke email Anda.
+                </div>
+                <div
+                    v-show="status === 'verification-link-failed'"
+                    class="mt-2 text-sm font-medium text-rose-600"
+                >
+                    Email verifikasi gagal dikirim. Coba lagi beberapa saat lagi.
                 </div>
             </div>
 
