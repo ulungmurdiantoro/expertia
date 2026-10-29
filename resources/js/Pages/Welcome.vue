@@ -1,4 +1,5 @@
 <script setup>
+import PublicRubricMark from '@/Components/PublicRubricMark.vue';
 import PublicLayout from '@/Layouts/PublicLayout.vue';
 import { articleKicker, contact, formatDate, rubrics } from '@/site';
 import { Head, Link } from '@inertiajs/vue3';
@@ -49,44 +50,36 @@ const hideImage = (event) => {
                         <Link class="btn btn-line" :href="route('kontributor')">Jadi Kontributor</Link>
                     </div>
                 </div>
-                <div class="chain" aria-label="Dari pengetahuan ke dampak">
-                    <div><span>01</span>Pengetahuan</div>
-                    <div><span>02</span>Kepakaran</div>
-                    <div class="last"><span>03</span>Dampak</div>
-                    <p>Dari Kepakaran Menuju Dampak Nyata.</p>
-                </div>
+                <ol class="flow" aria-label="Dari pengetahuan ke dampak">
+                    <li><span>01</span>Pengetahuan</li>
+                    <li><span>02</span>Kepakaran</li>
+                    <li class="last"><span>03</span>Dampak<em>Dari Kepakaran Menuju Dampak Nyata.</em></li>
+                </ol>
             </div>
         </section>
 
-        <hr class="rule" />
-
-        <section v-if="featured" class="section" aria-labelledby="pilihan-h">
+        <section v-if="featured" class="section home-featured" aria-labelledby="pilihan-h">
             <div class="wrap">
                 <div class="section-head">
                     <h2 id="pilihan-h" class="h2">Artikel Pilihan</h2>
                     <Link class="link-arrow" :href="route('articles.index')">Lihat semua artikel →</Link>
                 </div>
                 <div class="featured">
-                    <article class="feat-main">
-                        <Link
-                            v-if="featured.thumbnail_url"
-                            :href="route('articles.show', featured.slug)"
-                            tabindex="-1"
-                            aria-hidden="true"
-                        >
-                            <div class="cover">
-                                <!-- Gambar terbesar di atas lipatan (LCP): dimuat lebih dulu, tidak lazy. -->
-                                <img :src="featured.thumbnail_url" alt="" fetchpriority="high" decoding="async" @error="hideImage" />
-                            </div>
-                        </Link>
-                        <p class="eyebrow card-meta">{{ articleKicker(featured) }}</p>
-                        <h3>
-                            <Link :href="route('articles.show', featured.slug)">{{ featured.title }}</Link>
-                        </h3>
-                        <p v-if="featured.excerpt" class="excerpt">{{ featured.excerpt }}</p>
-                        <p class="byline">
-                            <strong>{{ featured.author?.name || 'Redaksi Expertia' }}</strong> · {{ formatDate(featured.published_at) }}
-                        </p>
+                    <article class="feat-main is-overlay">
+                        <!-- Gambar terbesar di atas lipatan (LCP): dimuat lebih dulu, tidak lazy. -->
+                        <img v-if="featured.thumbnail_url" :src="featured.thumbnail_url" alt="" fetchpriority="high" decoding="async" @error="hideImage" />
+                        <div class="feat-copy">
+                            <p class="eyebrow card-meta">
+                                <PublicRubricMark :slug="featured.category?.slug" />{{ articleKicker(featured) }}
+                            </p>
+                            <h3>
+                                <Link :href="route('articles.show', featured.slug)">{{ featured.title }}</Link>
+                            </h3>
+                            <p v-if="featured.excerpt" class="excerpt">{{ featured.excerpt }}</p>
+                            <p class="byline">
+                                <strong>{{ featured.author?.name || 'Redaksi Expertia' }}</strong> · {{ formatDate(featured.published_at) }}
+                            </p>
+                        </div>
                     </article>
 
                     <div class="feat-side">
@@ -101,7 +94,9 @@ const hideImage = (event) => {
                                     <img :src="secondary.thumbnail_url" alt="" loading="lazy" @error="hideImage" />
                                 </div>
                             </Link>
-                            <p class="eyebrow card-meta">{{ articleKicker(secondary) }}</p>
+                            <p class="eyebrow card-meta">
+                                <PublicRubricMark :slug="secondary.category?.slug" />{{ articleKicker(secondary) }}
+                            </p>
                             <h3>
                                 <Link :href="route('articles.show', secondary.slug)">{{ secondary.title }}</Link>
                             </h3>
@@ -119,15 +114,13 @@ const hideImage = (event) => {
             </div>
         </section>
 
-        <hr v-if="latest.length" class="rule" />
-
-        <section v-if="latest.length" class="section" aria-labelledby="terbaru-h">
+        <section v-if="latest.length" class="section on-paper" aria-labelledby="terbaru-h">
             <div class="wrap">
                 <div class="section-head">
                     <h2 id="terbaru-h" class="h2">Terbaru</h2>
                     <Link class="link-arrow" :href="route('articles.index')">Semua artikel →</Link>
                 </div>
-                <div class="latest-grid">
+                <div class="latest-grid is-staggered">
                     <article v-for="story in latest" :key="story.id" class="side-card">
                         <Link
                             v-if="story.thumbnail_url"
@@ -139,7 +132,9 @@ const hideImage = (event) => {
                                 <img :src="story.thumbnail_url" alt="" loading="lazy" @error="hideImage" />
                             </div>
                         </Link>
-                        <p class="eyebrow card-meta">{{ articleKicker(story) }}</p>
+                        <p class="eyebrow card-meta">
+                            <PublicRubricMark :slug="story.category?.slug" />{{ articleKicker(story) }}
+                        </p>
                         <h3>
                             <Link :href="route('articles.show', story.slug)">{{ story.title }}</Link>
                         </h3>
@@ -151,22 +146,24 @@ const hideImage = (event) => {
             </div>
         </section>
 
-        <section class="section on-paper" aria-labelledby="rubrik-h">
+        <section class="section on-tint" aria-labelledby="rubrik-h">
             <div class="wrap">
                 <h2 id="rubrik-h" class="h2">Jelajahi Kepakaran</h2>
                 <p class="lead">Empat rubrik untuk memahami persoalan dari sudut pandang orang yang menekuninya.</p>
-                <div class="rubrics">
+                <div class="rubrics is-cards">
                     <template v-for="rubric in rubrics" :key="rubric.slug">
                         <Link
                             v-if="rubricCounts[rubric.slug] > 0"
                             class="rubric"
                             :href="route('articles.index', { category: rubric.slug })"
                         >
+                            <PublicRubricMark :slug="rubric.slug" :size="14" />
                             <h3>{{ rubric.name }}</h3>
                             <p>{{ rubric.description }}</p>
-                            <p class="status">{{ rubricCounts[rubric.slug] }} artikel →</p>
+                            <p class="status"><span class="count">{{ rubricCounts[rubric.slug] }}</span> artikel →</p>
                         </Link>
-                        <div v-else class="rubric">
+                        <div v-else class="rubric is-soon">
+                            <PublicRubricMark :slug="rubric.slug" :size="14" />
                             <h3>{{ rubric.name }}</h3>
                             <p>{{ rubric.description }}</p>
                             <p class="status soon">Segera hadir</p>
@@ -196,7 +193,7 @@ const hideImage = (event) => {
                         ({{ contact.whatsappName }}).
                     </p>
                 </div>
-                <ul class="benefits">
+                <ul class="benefits is-boxes">
                     <li class="label">Yang Anda terima</li>
                     <li>Satu artikel populer dari materi sumber Anda</li>
                     <li>Satu carousel Instagram</li>
@@ -206,15 +203,15 @@ const hideImage = (event) => {
             </div>
         </section>
 
-        <section class="section about" aria-labelledby="tentang-h">
+        <section class="section about is-dark" aria-labelledby="tentang-h">
             <div class="wrap">
                 <div class="col">
-                    <h2 id="tentang-h" class="h2">Tentang Expertia</h2>
-                    <p class="lead" style="font-size: 18px; line-height: 1.65; margin-top: 20px">
+                    <h2 id="tentang-h" class="eyebrow">Tentang Expertia</h2>
+                    <p class="statement">
                         Pengetahuan memberi dampak lebih besar ketika dapat diakses, dipahami, dan digunakan. Expertia menjembatani
                         dunia akademik, profesional, industri, dan kebijakan publik melalui publikasi yang kredibel dan relevan.
                     </p>
-                    <p style="margin-top: 20px">
+                    <p style="margin-top: 24px">
                         <Link class="link-arrow" :href="route('kebijakan.editorial')">Baca kebijakan editorial →</Link>
                     </p>
                 </div>

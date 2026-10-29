@@ -20,7 +20,7 @@ class ArticleSearchService
         $perPage = max(1, min(30, $perPage));
 
         $query = Article::query()
-            ->with(['author:id,name,profile_slug', 'category:id,name,slug', 'tags:id,name,slug'])
+            ->with([ArticleShowcaseService::AUTHOR_COLUMNS, 'category:id,name,slug', 'tags:id,name,slug'])
             ->publiclyVisible()
             ->whereNotNull('published_at');
 

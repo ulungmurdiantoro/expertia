@@ -25,6 +25,9 @@ class PublicAuthorResource extends JsonResource
             'profile_slug' => $this->profile_slug,
             'bio' => $this->whenHas('bio'),
             'avatar_url' => $this->whenHas('avatar', fn () => $this->avatar_url),
+            // Jabatan dan institusi juga tampil di halaman profil publik.
+            'position' => $this->whenHas('position'),
+            'institution' => $this->whenHas('institution'),
         ];
     }
 }

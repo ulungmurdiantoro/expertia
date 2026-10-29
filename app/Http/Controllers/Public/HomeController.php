@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\ArticleCardResource;
 use App\Models\Article;
 use App\Models\Category;
+use App\Services\ArticleShowcaseService;
 use App\Support\PageMeta;
 use App\Support\StructuredData;
 use Illuminate\Support\Facades\Schema;
@@ -21,7 +22,7 @@ class HomeController extends Controller
 
         if (Schema::hasTable('articles') && Schema::hasTable('categories')) {
             $articles = Article::query()
-                ->with(['author:id,name,profile_slug', 'category:id,name,slug', 'tags:id,name,slug'])
+                ->with([ArticleShowcaseService::AUTHOR_COLUMNS, 'category:id,name,slug', 'tags:id,name,slug'])
                 ->publiclyVisible()
                 ->whereNotNull('published_at')
                 ->latest('published_at')

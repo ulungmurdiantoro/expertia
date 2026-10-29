@@ -11,6 +11,7 @@ use App\Models\Category;
 use App\Services\ArticleCommentThread;
 use App\Services\ArticleScoringService;
 use App\Services\ArticleSearchService;
+use App\Services\ArticleShowcaseService;
 use App\Services\EventTrackingService;
 use App\Support\BotDetector;
 use App\Support\PageMeta;
@@ -23,7 +24,7 @@ use Inertia\Response;
 
 class ArticleController extends Controller
 {
-    public function index(Request $request, ArticleSearchService $searchService): Response
+    public function index(Request $request, ArticleSearchService $searchService, ArticleShowcaseService $showcaseService): Response
     {
         $filters = [
             'q' => trim((string) $request->query('q', '')),
@@ -36,14 +37,29 @@ class ArticleController extends Controller
             ->through(fn (Article $article) => ArticleCardResource::make($article)->resolve($request));
 
         $category = $filters['category'] !== ''
-            ? Category::query()->where('slug', $filters['category'])->first(['name', 'slug', 'description'])
+            ? Category::query()->where('slug', $filters['category'])->first(['id', 'name', 'slug', 'description'])
             : null;
         $title = $category?->name ?? 'Artikel';
         $subtitle = $category?->description ?: 'Kumpulan artikel yang sudah dipublikasikan di Expertia.';
 
+        // Tampilan sorotan hanya di halaman 1 tanpa pencarian, tag, atau urutan lain.
+        $isBrowsing = $articles->currentPage() === 1
+            && $filters['q'] === ''
+            && $filters['tag'] === ''
+            && in_array($filters['sort'], ['', 'latest'], true);
+        $showcase = null;
+        if ($isBrowsing && $category && in_array($category->slug, config('expertia.menu_rubrics'), true)) {
+            $showcase = $showcaseService->forRubric($request, $category);
+        } elseif ($isBrowsing && $filters['category'] === '') {
+            // Tiga artikel teratas sudah tampil sebagai sorotan; jangan diulang di blok rubrik.
+            $highlightIds = collect($articles->items())->take(3)->pluck('id')->all();
+            $showcase = $showcaseService->forHub($request, config('expertia.menu_rubrics'), $highlightIds);
+        }
+
         return Inertia::render('Public/Articles/Index', [
             'articles' => $articles,
             'filters' => $filters,
+            'showcase' => $showcase,
             'categories' => $this->categoryOptions(),
             'pageMeta' => [
                 'title' => $title,
