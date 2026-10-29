@@ -13,18 +13,39 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    // null di halaman 2 dst., pencarian, dan filter topik: header dan daftar tetap sama,
+    // hanya sorotan, blok rubrik, dan kolom samping yang khusus halaman 1.
     showcase: {
         type: Object,
-        required: true,
+        default: null,
+    },
+    filters: {
+        type: Object,
+        default: () => ({}),
     },
 });
 
 const items = computed(() => props.articles.data || []);
-const lead = computed(() => items.value[0]);
-const side = computed(() => items.value.slice(1, 3));
-const rest = computed(() => items.value.slice(3));
+const lead = computed(() => (props.showcase ? items.value[0] : null));
+const side = computed(() => (props.showcase ? items.value.slice(1, 3) : []));
+const rest = computed(() => (props.showcase ? items.value.slice(3) : items.value));
 
-const sections = computed(() => props.showcase.sections || []);
+const tagName = computed(() => items.value
+    .flatMap((article) => article.tags || [])
+    .find((tag) => tag.slug === props.filters?.tag)?.name || props.filters?.tag);
+const listTitle = computed(() => {
+    if (props.showcase) {
+        return 'Terbaru dari semua rubrik';
+    }
+    if (props.filters?.q) {
+        return `Hasil untuk “${props.filters.q}”`;
+    }
+
+    return props.filters?.tag ? `Topik: ${tagName.value}` : 'Semua artikel';
+});
+const isFiltered = computed(() => Boolean(props.filters?.q || props.filters?.tag));
+
+const sections = computed(() => props.showcase?.sections || []);
 const filled = computed(() => sections.value.filter((section) => section.articles.length > 0));
 const empty = computed(() => sections.value.filter((section) => section.article_count === 0));
 const description = (slug) => rubrics.find((rubric) => rubric.slug === slug)?.description;
@@ -58,7 +79,7 @@ const groups = computed(() => {
     }, []);
 });
 
-const q = ref('');
+const q = ref(props.filters?.q ?? '');
 const search = () => {
     router.get(route('articles.index'), { q: q.value || undefined });
 };
@@ -93,7 +114,7 @@ const hideImage = (event) => {
     </section>
 
     <div class="wrap">
-        <nav v-if="showcase.topics?.length" class="chips hub-topics" aria-label="Topik populer">
+        <nav v-if="showcase?.topics?.length" class="chips hub-topics" aria-label="Topik populer">
             <span class="muted">Topik populer:</span>
             <Link v-for="topic in showcase.topics" :key="topic.slug" class="chip" :href="route('articles.index', { tag: topic.slug })">
                 {{ topic.name }}
@@ -165,8 +186,12 @@ const hideImage = (event) => {
 
         <section v-if="rest.length" class="hub-latest" aria-labelledby="hub-latest-h">
             <div class="hub-latest-main">
-                <div class="list-head">
-                    <h2 id="hub-latest-h" class="h2">Terbaru dari semua rubrik</h2>
+                <div class="list-head" :class="{ 'is-first': !showcase }">
+                    <h2 id="hub-latest-h" class="h2">{{ listTitle }}</h2>
+                    <span v-if="!showcase" class="muted">
+                        {{ articles.total }} artikel<template v-if="articles.last_page > 1"> · halaman {{ articles.current_page }}</template>
+                        <template v-if="isFiltered"> · <Link :href="route('articles.index')">lihat semua</Link></template>
+                    </span>
                 </div>
                 <template v-for="group in groups" :key="group.name">
                     <p class="group-label">{{ group.name }}</p>
@@ -186,7 +211,7 @@ const hideImage = (event) => {
                 <PublicPager :paginator="articles" />
             </div>
 
-            <aside class="hub-aside">
+            <aside v-if="showcase" class="hub-aside">
                 <PublicPopularList :articles="showcase.popular || []" layout="stack" />
                 <div v-if="showcase.new_contributors?.length" class="new-people">
                     <p class="eyebrow">Pakar baru bergabung</p>
@@ -204,8 +229,15 @@ const hideImage = (event) => {
                 </div>
             </aside>
         </section>
-        <PublicPager v-else :paginator="articles" />
-
-        <p v-if="items.length === 0" class="empty">Belum ada artikel terbit.</p>
+        <template v-else>
+            <p class="empty">
+                <template v-if="isFiltered">
+                    Belum ada artikel yang cocok. Coba kata kunci lain atau
+                    <Link :href="route('articles.index')">lihat semua artikel</Link>.
+                </template>
+                <template v-else>Belum ada artikel terbit.</template>
+            </p>
+            <PublicPager :paginator="articles" />
+        </template>
     </div>
 </template>

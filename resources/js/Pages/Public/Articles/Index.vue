@@ -77,7 +77,12 @@ const applyFilters = () => {
     <Head :title="meta.title || pageMeta.title || 'Artikel'" />
 
     <PublicLayout>
-        <PublicArticlesHub v-if="showcase?.kind === 'hub'" :articles="articles" :showcase="showcase" />
+        <PublicArticlesHub
+            v-if="pageMeta.mode === 'latest' && !filters.category"
+            :articles="articles"
+            :showcase="showcase?.kind === 'hub' ? showcase : null"
+            :filters="filters"
+        />
 
         <PublicRubricView
             v-else-if="rubricView"
