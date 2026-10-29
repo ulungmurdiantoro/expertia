@@ -135,6 +135,16 @@ class User extends Authenticatable implements HasLocalePreference, MustVerifyEma
     }
 
     /**
+     * Selama verifikasi email dimatikan (config expertia.require_email_verification), semua
+     * akun dianggap terverifikasi: middleware 'verified' meloloskan, dan listener Registered
+     * tidak mengirim email verifikasi.
+     */
+    public function hasVerifiedEmail(): bool
+    {
+        return ! config('expertia.require_email_verification') || parent::hasVerifiedEmail();
+    }
+
+    /**
      * Email notifikasi (verifikasi dan lainnya) memakai teks bahasa Indonesia dari lang/id.json.
      */
     public function preferredLocale(): string

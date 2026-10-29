@@ -28,7 +28,7 @@ class ProfileController extends Controller
         $user = $request->user();
 
         return Inertia::render('Profile/Edit', [
-            'mustVerifyEmail' => $user instanceof MustVerifyEmail,
+            'mustVerifyEmail' => $user instanceof MustVerifyEmail && config('expertia.require_email_verification'),
             'status' => session('status'),
             'canDeleteAccount' => $user->canDeleteOwnAccount(),
             // Hanya akun yang bisa menulis yang punya profil kontributor untuk dilengkapi.

@@ -70,9 +70,13 @@ class RegisteredUserController extends Controller
                 ->with('error', "Akun kontributor {$user->name} dibuat, tetapi email verifikasi gagal dikirim. Minta kontributor masuk lalu menekan \"Kirim ulang email verifikasi\", atau periksa pengaturan email server.");
         }
 
+        $verificationNote = config('expertia.require_email_verification')
+            ? " dan email verifikasi dikirim ke {$user->email}. Kontributor bisa menulis setelah memverifikasi email"
+            : '';
+
         return redirect()
             ->route('admin.contributors.create')
-            ->with('success', "Akun kontributor {$user->name} dibuat dan email verifikasi dikirim ke {$user->email}. Kontributor bisa menulis setelah memverifikasi email. Profil publiknya: /authors/{$user->profile_slug}");
+            ->with('success', "Akun kontributor {$user->name} dibuat{$verificationNote}. Profil publiknya: /authors/{$user->profile_slug}");
     }
 
     /**

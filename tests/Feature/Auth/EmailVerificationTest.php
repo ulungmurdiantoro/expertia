@@ -18,6 +18,48 @@ class EmailVerificationTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Verifikasi email nonaktif secara bawaan (REQUIRE_EMAIL_VERIFICATION); test di kelas
+     * ini memastikan fitur tetap benar saat dinyalakan.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config(['expertia.require_email_verification' => true]);
+    }
+
+    public function test_when_verification_is_off_unverified_accounts_work_and_no_email_is_sent(): void
+    {
+        config(['expertia.require_email_verification' => false]);
+        $this->seed(RoleAndPermissionSeeder::class);
+        Notification::fake();
+
+        $this->post('/register', [
+            'name' => 'Pembaca Baru',
+            'email' => 'pembaca@example.com',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+        ])->assertRedirect(route('dashboard', absolute: false));
+        Notification::assertNothingSent();
+
+        $author = User::factory()->create();
+        $author->assignRole('author');
+        $article = Article::factory()->published()->for($author, 'author')->create();
+        $reader = User::factory()->unverified()->create();
+        $reader->assignRole('user');
+
+        $this->actingAs($reader)->get(route('dashboard'))->assertOk();
+        $this->actingAs($reader)
+            ->post(route('articles.comments.store', $article->slug), ['content' => 'Halo'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame(1, $article->comments()->count());
+
+        $this->actingAs($reader)
+            ->get(route('profile.edit'))
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('mustVerifyEmail', false));
+    }
+
     public function test_email_verification_screen_can_be_rendered(): void
     {
         $user = User::factory()->unverified()->create();

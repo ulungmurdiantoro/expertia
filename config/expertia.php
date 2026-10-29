@@ -36,6 +36,14 @@ return [
     'menu_rubrics' => ['riset-inovasi', 'perspektif-pakar', 'profil-pakar', 'kebijakan-solusi'],
 
     /*
+    | Wajib verifikasi email (User::hasVerifiedEmail). Dimatikan selama pengiriman email
+    | (MAIL_* di .env) belum siap: semua akun dianggap terverifikasi dan tidak ada email
+    | verifikasi yang dikirim. Nyalakan dengan REQUIRE_EMAIL_VERIFICATION=true di .env,
+    | lalu `php artisan config:cache`.
+    */
+    'require_email_verification' => (bool) env('REQUIRE_EMAIL_VERIFICATION', false),
+
+    /*
     |--------------------------------------------------------------------------
     | Crawler AI
     |--------------------------------------------------------------------------

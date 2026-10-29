@@ -12,6 +12,7 @@
 #   RELOAD_FPM=1 bash deploy.sh    reload php-fpm di akhir (butuh sudo)
 #   ALLOW_NON_PRODUCTION=1 ...     izinkan .env non-produksi (server uji/staging)
 #   ALLOW_NO_MAIL=1 ...            izinkan deploy walau MAIL_MAILER belum diatur
+#                                  saat REQUIRE_EMAIL_VERIFICATION=true
 #
 # Deploy dihentikan bila .env belum untuk produksi (APP_ENV, APP_DEBUG, APP_URL)
 # atau ada file yang isinya diubah langsung di server. Perubahan izin file saja
@@ -309,16 +310,20 @@ else
     ok "APP_ENV=production, APP_DEBUG=false, APP_URL=$(env_get APP_URL)"
 fi
 
-# Email wajib diverifikasi (User implements MustVerifyEmail): tanpa mailer sungguhan,
+# Bila verifikasi email aktif (REQUIRE_EMAIL_VERIFICATION=true), tanpa mailer sungguhan
 # pendaftar baru tidak pernah menerima tautan verifikasi dan tidak bisa berkomentar.
 mailer="$(env_get MAIL_MAILER)"
 if [[ -z "$mailer" || "$mailer" == "log" || "$mailer" == "array" ]]; then
-    warn "MAIL_MAILER=${mailer:-kosong}: email verifikasi dan reset password tidak akan terkirim."
-    if [[ "${ALLOW_NO_MAIL:-0}" != "1" ]]; then
-        fail "Atur MAIL_MAILER (mis. smtp), MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, dan MAIL_FROM_ADDRESS di .env, lalu jalankan ulang.
-       Untuk tetap deploy tanpa email (pendaftar baru tidak bisa memverifikasi akun), jalankan dengan ALLOW_NO_MAIL=1."
+    if [[ "$(env_get REQUIRE_EMAIL_VERIFICATION)" == "true" ]]; then
+        warn "MAIL_MAILER=${mailer:-kosong}: email verifikasi dan reset password tidak akan terkirim."
+        if [[ "${ALLOW_NO_MAIL:-0}" != "1" ]]; then
+            fail "Atur MAIL_MAILER (mis. smtp), MAIL_HOST, MAIL_PORT, MAIL_USERNAME, MAIL_PASSWORD, dan MAIL_FROM_ADDRESS di .env, lalu jalankan ulang.
+       Atau matikan dulu verifikasi email dengan REQUIRE_EMAIL_VERIFICATION=false, atau jalankan dengan ALLOW_NO_MAIL=1."
+        fi
+        warn "ALLOW_NO_MAIL=1: tetap dilanjutkan."
+    else
+        warn "MAIL_MAILER=${mailer:-kosong}: email reset password tidak akan terkirim. Verifikasi email sedang nonaktif (REQUIRE_EMAIL_VERIFICATION bukan true)."
     fi
-    warn "ALLOW_NO_MAIL=1: tetap dilanjutkan."
 else
     ok "MAIL_MAILER=$mailer"
 fi
