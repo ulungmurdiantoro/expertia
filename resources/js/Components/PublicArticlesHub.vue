@@ -30,15 +30,17 @@ const empty = computed(() => sections.value.filter((section) => section.article_
 const description = (slug) => rubrics.find((rubric) => rubric.slug === slug)?.description;
 const personFirst = (slug) => ['perspektif-pakar', 'profil-pakar'].includes(slug);
 
-// Kelompok waktu dihitung dalam WIB, sama dengan tanggal yang ditampilkan.
-const dayKey = (value) => new Intl.DateTimeFormat('en-CA', { timeZone: SITE_TIME_ZONE }).format(new Date(String(value).replace(' ', 'T')));
+// Kelompok waktu dihitung dalam WIB, sama dengan tanggal yang ditampilkan. Tanggal tak
+// valid tidak boleh sampai ke Intl.DateTimeFormat: ia melempar error dan halaman kosong.
+const dayKey = (date) => new Intl.DateTimeFormat('en-CA', { timeZone: SITE_TIME_ZONE }).format(date);
 const groups = computed(() => {
     const today = new Date(`${dayKey(new Date())}T00:00:00`);
     const label = (article) => {
-        if (!article.published_at) {
+        const published = new Date(String(article.published_at || '').replace(' ', 'T'));
+        if (Number.isNaN(published.getTime())) {
             return 'Sebelumnya';
         }
-        const days = (today - new Date(`${dayKey(article.published_at)}T00:00:00`)) / 86400000;
+        const days = (today - new Date(`${dayKey(published)}T00:00:00`)) / 86400000;
 
         return days < 7 ? 'Minggu ini' : days < 31 ? 'Bulan ini' : 'Sebelumnya';
     };
