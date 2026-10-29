@@ -121,6 +121,17 @@ const hideImage = (event) => {
                 </Link>
             </div>
             <div class="lead-person-copy">
+                <Link
+                    v-if="featured.thumbnail_url"
+                    class="lead-person-cover"
+                    :href="route('articles.show', featured.slug)"
+                    tabindex="-1"
+                    aria-hidden="true"
+                >
+                    <div class="cover">
+                        <img :src="featured.thumbnail_url" alt="" fetchpriority="high" @error="hideImage" />
+                    </div>
+                </Link>
                 <p class="eyebrow">Terbaru<template v-if="featured.tags?.[0]"> · {{ featured.tags[0].name }}</template></p>
                 <blockquote v-if="featured.excerpt">
                     <span aria-hidden="true" class="mark">“</span>{{ featured.excerpt }}

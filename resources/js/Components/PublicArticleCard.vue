@@ -35,7 +35,7 @@ const hideImage = (event) => {
 <template>
     <article class="a-card" :class="`is-${variant}`">
         <Link
-            v-if="variant === 'image'"
+            v-if="variant === 'image' || article.thumbnail_url"
             class="a-card-cover"
             :href="route('articles.show', article.slug)"
             tabindex="-1"

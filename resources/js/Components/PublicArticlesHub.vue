@@ -138,6 +138,17 @@ const hideImage = (event) => {
             </article>
             <div v-if="side.length" class="spotlight-side">
                 <article v-for="article in side" :key="article.id" class="side-card">
+                    <Link
+                        v-if="article.thumbnail_url"
+                        class="a-card-cover"
+                        :href="route('articles.show', article.slug)"
+                        tabindex="-1"
+                        aria-hidden="true"
+                    >
+                        <div class="cover light">
+                            <img :src="article.thumbnail_url" alt="" loading="lazy" @error="hideImage" />
+                        </div>
+                    </Link>
                     <p class="a-card-kicker">
                         <PublicRubricMark :slug="article.category?.slug" />{{ article.category?.name }}
                     </p>
@@ -206,6 +217,15 @@ const hideImage = (event) => {
                                 <strong>{{ article.author?.name || 'Redaksi Expertia' }}</strong> · {{ formatDate(article.published_at) }}
                             </p>
                         </div>
+                        <Link
+                            v-if="article.thumbnail_url"
+                            class="tone-thumb"
+                            :href="route('articles.show', article.slug)"
+                            tabindex="-1"
+                            aria-hidden="true"
+                        >
+                            <img :src="article.thumbnail_url" alt="" loading="lazy" @error="hideImage" />
+                        </Link>
                     </article>
                 </template>
                 <PublicPager :paginator="articles" />
